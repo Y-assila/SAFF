@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/*
+ * SAFF design tokens.
+ * Source of truth: SAFF_Exact_Logo_Brand_Kit_v1.2/tokens/saff-tokens.css (v1.2).
+ * The default Tailwind palette is removed so only approved brand colours can be used.
+ */
+@theme {
+  --color-*: initial;
+
+  /* Approved brand colours */
+  --color-midnight: #0b0b0f; /* Midnight Black — page background */
+  --color-surface: #17171d; /* Surface Dark — cards, sheets */
+  --color-signal: #a6ff00; /* Signal Lime — primary action, active/next-in-line only */
+  --color-soft: #f5f5f5; /* Soft White — primary text */
+  --color-muted: #a1a1aa; /* Muted Grey — secondary text */
+  --color-line: #292932; /* Border Grey — borders, dividers */
+  --color-graphite: #777b84; /* Graphite — supporting queue information (brand kit v1.2) */
+
+  /*
+   * PROVISIONAL functional colour, not part of the brand kit.
+   * Used only for validation/error affordances, always paired with an icon and text.
+   * Pending brand approval — see docs/IMPLEMENTATION-PLAN.md §10.
+   */
+  --color-danger: #ff6b6b;
+
+  --font-latin: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', ui-sans-serif,
+    system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', ui-sans-serif,
+    system-ui, sans-serif;
+  --font-sans: var(--font-latin);
+
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+
+  --animate-spin-slow: spin 0.9s linear infinite;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background-color: var(--color-midnight);
+    color: var(--color-soft);
+    font-family: var(--font-latin);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Arabic uses IBM Plex Sans Arabic first, wherever lang="ar" appears (document or component). */
+  :lang(ar) {
+    font-family: var(--font-arabic);
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-midnight);
+  }
+
+  ::selection {
+    background-color: var(--color-signal);
+    color: var(--color-midnight);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
+  dialog::backdrop {
+    background-color: rgb(11 11 15 / 0.8);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
