@@ -4,14 +4,15 @@ import { randomUUID } from 'node:crypto'
 import type { Database } from '../src/lib/database.types'
 
 /** Local stack only: read URL and service key from `supabase status` (never hard-coded). */
-function localStack() {
+export function localStack() {
   const out = execSync('npx supabase status -o env', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
   const get = (k: string) => out.match(new RegExp(`^${k}="?([^"\\n]+)"?`, 'm'))?.[1]
   const url = get('API_URL')
   const serviceKey = get('SERVICE_ROLE_KEY')
-  if (!url || !serviceKey) throw new Error('Local Supabase is not running (npm run db:start).')
+  const anonKey = get('ANON_KEY')
+  if (!url || !serviceKey || !anonKey) throw new Error('Local Supabase is not running (npm run db:start).')
   if (!/^http:\/\/(127\.0\.0\.1|localhost)/.test(url)) throw new Error('E2E fixtures refuse to run against a non-local stack.')
-  return { url, serviceKey }
+  return { url, serviceKey, anonKey }
 }
 
 let admin: SupabaseClient<Database> | null = null
@@ -55,4 +56,33 @@ export async function joinQueue(slug: string, name: string, phone: string) {
   })
   if (error) throw error
   return data as { result: string; ticket_number: number }
+}
+
+/** Today's date in the shop's time zone (sessions are keyed by shop-local date). */
+export function shopToday(timeZone = 'Africa/Casablanca'): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+
+/** Signs a barber in with the public anon key, exactly as the barber app does. */
+export async function barberClient(email: string) {
+  const { url, anonKey } = localStack()
+  const client = createClient<Database>(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { error } = await client.auth.signInWithPassword({ email, password: PASSWORD })
+  if (error) throw error
+  return client
+}
+
+/** A shop with an open queue, ready for customers. */
+export async function openShop() {
+  const staff = await createShopWithStaff()
+  const barber = await barberClient(staff.barber.email)
+  const { data, error } = await barber.rpc('start_queue', { p_shop_id: staff.shop.id })
+  if (error) throw error
+  return { ...staff, barberRpc: barber, sessionId: (data as { session_id: string }).session_id }
+}
+
+/** Clears rate-limit counters (local stack only) so tests do not throttle each other. */
+export async function resetRateLimits() {
+  const { error } = await adminClient().from('rate_limits').delete().gte('hits', 0)
+  if (error) throw error
 }

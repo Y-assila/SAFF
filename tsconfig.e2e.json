@@ -22,5 +22,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["e2e", "playwright.config.ts", "src/lib/database.types.ts"]
+  "include": ["e2e", "playwright.config.ts", "src/lib/database.types.ts"],
+  "exclude": ["e2e/turnstile-mock"]
 }

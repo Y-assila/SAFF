@@ -4,7 +4,7 @@
 
 SAFF is a digital queue management platform for barbershops. Customers scan a shop's permanent QR code, join the queue with their name and phone number, receive a digital ticket and track their turn remotely. Barbers manage the queue from a dedicated dashboard.
 
-> Status: **Milestone 3**. The barber app (sign in, live queue dashboard, settings) runs on the local Supabase backend: schema, RLS and the queue engine. Next is the customer join and ticket flow (Milestone 4). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
+> Status: **Milestone 4**. The customer flow (QR shop page, join form with bot check, private live ticket) and the barber app run on the local Supabase backend (schema, RLS, queue engine, Edge Functions). Next: WhatsApp notifications (Milestone 5). The consent text is a **draft pending legal review**. See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
 
 ## Stack
 
@@ -20,6 +20,10 @@ npm install
 
 ```bash
 cp .env.example .env.local
+```
+
+```bash
+cp supabase/functions/.env.example supabase/functions/.env
 ```
 
 ```bash
@@ -48,6 +52,7 @@ Open http://localhost:5173. In development, the component gallery is at `/dev/ui
 | `npm run db:test:concurrency` | Race real parallel clients against the queue engine (local DB only) |
 | `npm run test:e2e` | Playwright E2E against the local stack (needs `db:start` and `.env.local`) |
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` from the local schema |
+| `npm run edge:vendor` | Rebuild the Edge Functions' vendored libphonenumber bundle |
 
 ## Local database
 
@@ -58,6 +63,8 @@ curl -X POST http://127.0.0.1:54321/auth/v1/admin/users -H "apikey: $SERVICE_ROL
 ```
 
 Then add the membership in SQL (`insert into public.shop_members (shop_id, user_id, role) ...`).
+
+**E2E tests** use an offline Turnstile double. Before `npm run db:start`, set `TURNSTILE_VERIFY_URL=http://saff-turnstile-mock:8080/siteverify` in `supabase/functions/.env`. The Playwright setup starts the double; CI does all of this automatically.
 
 ## Continuous integration
 

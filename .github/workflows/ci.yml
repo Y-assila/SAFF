@@ -44,7 +44,7 @@ jobs:
         run: npm run build
 
   database:
-    name: Backend + E2E (migrations, pgTAP, concurrency, Playwright)
+    name: Backend + E2E (migrations, Edge Functions, pgTAP, concurrency, Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -59,6 +59,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Edge Functions: local settings; Turnstile verification goes to the offline test double that
+      # the E2E setup starts on the Supabase network (allowed only with SAFF_ENVIRONMENT=local).
+      - name: Configure Edge Functions (local, hermetic)
+        run: |
+          cp supabase/functions/.env.example supabase/functions/.env
+          sed -i 's|^TURNSTILE_VERIFY_URL=.*|TURNSTILE_VERIFY_URL=http://saff-turnstile-mock:8080/siteverify|' supabase/functions/.env
+
       - name: Start local Supabase (applies all migrations from scratch)
         run: npm run db:start
 
@@ -72,7 +79,7 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: End-to-end tests (barber app against local Supabase)
+      - name: End-to-end tests (barber + customer flows, Edge Function security)
         run: |
           cp .env.example .env.local
           npm run test:e2e -- --trace off

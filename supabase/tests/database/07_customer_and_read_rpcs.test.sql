@@ -49,9 +49,9 @@ select is((select count(*)::int from public.tickets where queue_session_id = :'s
 
 select tests.join('cust-shop', '+212644000001') as dup \gset
 select is(:'dup'::jsonb, '{"result":"existing"}'::jsonb, 'a duplicate phone gets "existing" with no id, number or name');
-select is((select count(*)::int from public.notifications where notification_type = 'link_resent'), 1, 'the link is re-sent to that WhatsApp number');
+select is((select count(*)::int from public.notifications where notification_type = 'link_resent' and shop_id = :'shop'), 1, 'the link is re-sent to that WhatsApp number');
 select tests.join('cust-shop', '+212644000001');
-select is((select count(*)::int from public.notifications where notification_type = 'link_resent'), 1, 'at most one re-send per 10 minutes');
+select is((select count(*)::int from public.notifications where notification_type = 'link_resent' and shop_id = :'shop'), 1, 'at most one re-send per 10 minutes');
 
 select throws_ok($$select tests.join('cust-shop', '+212644000009', gen_random_uuid(), 'X', false)$$, 'P0001', 'consent_required', 'consent is required');
 select throws_ok($$select tests.join('cust-shop', '+212644000009', gen_random_uuid(), '   ')$$, 'P0001', 'invalid_name', 'a blank name is refused');

@@ -25,8 +25,8 @@ function cspConnectSrc(mode: string): Plugin {
       }
       const ws = origin.protocol === 'https:' ? `wss://${origin.host}` : `ws://${origin.host}`
       const headers = readFileSync(file, 'utf8')
-      if (!headers.includes("connect-src 'self'")) this.error("_headers: connect-src 'self' placeholder not found")
-      writeFileSync(file, headers.replace("connect-src 'self'", `connect-src 'self' ${origin.origin} ${ws}`))
+      if (!headers.includes("connect-src 'self' ")) this.error("_headers: connect-src 'self' placeholder not found")
+      writeFileSync(file, headers.replace("connect-src 'self' ", `connect-src 'self' ${origin.origin} ${ws} `))
     },
   }
 }
@@ -35,6 +35,7 @@ function cspConnectSrc(mode: string): Plugin {
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss(), cspConnectSrc(mode)],
   test: {
+    include: ['src/**/*.test.{ts,tsx}', 'supabase/functions/**/*.test.ts'],
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
