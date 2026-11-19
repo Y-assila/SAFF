@@ -10,7 +10,8 @@ const base =
 
 const variants: Record<ButtonVariant, string> = {
   // Lime is reserved for the primary action (brand guidelines).
-  primary: 'bg-signal text-midnight hover:bg-signal/90 active:bg-signal/80',
+  // Disabled primary turns neutral: dimmed lime reads as a different colour, not as "unavailable".
+  primary: 'bg-signal text-midnight hover:bg-signal/90 active:bg-signal/80 disabled:bg-line disabled:text-muted disabled:opacity-100',
   secondary: 'border border-line bg-surface text-soft hover:border-graphite hover:bg-line/60',
   ghost: 'text-soft hover:bg-surface',
 }

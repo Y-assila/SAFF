@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -44,13 +44,13 @@ jobs:
         run: npm run build
 
   database:
-    name: Database (migrations, pgTAP, concurrency)
+    name: Backend + E2E (migrations, pgTAP, concurrency, Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -67,6 +67,15 @@ jobs:
 
       - name: Concurrency tests (parallel clients)
         run: npm run db:test:concurrency
+
+      # E2E: the Vite dev server talks to the local stack using the public local defaults.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests (barber app against local Supabase)
+        run: |
+          cp .env.example .env.local
+          npm run test:e2e -- --trace off
 
       - name: Supabase logs on failure
         if: failure()

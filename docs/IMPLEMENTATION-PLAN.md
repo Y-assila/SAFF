@@ -1,6 +1,6 @@
 # SAFF — Implementation Plan
 
-*Status: Milestone 0 ✅ · Milestone 1 ✅ · Milestone 2 ✅ delivered for review · 19 Nov 2026*
+*Status: Milestones 0–3 ✅ (M3 delivered for review) · CI green · 19 Nov 2026*
 
 ## 0. Sources of truth
 
@@ -49,7 +49,7 @@ The six core decisions come from TD §0:
 | Tests | Vitest + Testing Library + jsdom (TD §2.3). Playwright and pgTAP arrive with later milestones. |
 | Lint | oxlint (the current Vite template default). |
 
-Not added yet, deferred to the milestone that needs them (all are already approved in TD §2.3): TanStack Query, Zod, libphonenumber-js, `@supabase/supabase-js`, Turnstile.
+Added in M3: `@supabase/supabase-js`, TanStack Query, Playwright. Still deferred to M4 (all approved in TD §2.3): Zod, libphonenumber-js, Turnstile.
 
 ## 2. Milestones
 
@@ -60,7 +60,7 @@ Each milestone is reviewed before the next one starts.
 | **0** | **Foundation** ✅ | Vite/React/TS, Tailwind tokens, fonts, i18n + RTL, app shell, UI primitives, exact logo, landing page, placeholder routes, Cloudflare headers | Build, typecheck, lint and tests all green. **Done; awaiting review.** |
 | **1** | **Local backend + schema** ✅ | Supabase CLI project; migrations for TD §4.1–4.5 (types, tenant tables, sessions, tickets, transitions, outbox, events, rate limits); privileges + RLS (TD §5); seed script for **local only** | `supabase db reset` works; pgTAP tests pass for RLS isolation and all invariants (§5). **Done: 8 migrations, 74 pgTAP tests; see §12.** |
 | **2** | **Queue engine RPCs** ✅ | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table). **Done: 181 pgTAP assertions + 14 concurrency checks; see §13.** |
-| 3 | Barber app | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase |
+| **3** | **Barber app** ✅ | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase. **Done: see §14.** |
 | 4 | Customer flow | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404 |
 | 5 | WhatsApp | Outbox dispatcher, templates (FR/AR), webhook signature verification, delivery statuses, retries, suppression | Failed sends never affect tickets; idempotency verified |
 | 6 | Hardening + launch | Retention/anonymisation job, nightly stale-session job, monitoring, backups, staging→prod, legal (CNDP), QR generation & print | Security review checklist complete; staging soak test |
@@ -178,7 +178,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 ## 11. Known limitations of Milestone 0
 
 - FR and AR copy is machine-quality and needs native review before launch.
-- The main JS bundle is ~397 kB (~126 kB gzip): React 19 + router + i18next. Route-level code splitting comes with M3/M4, once real feature pages exist.
+- The main JS bundle is ~697 kB (~204 kB gzip) since M3 added supabase-js and TanStack Query. **M4 will add route-level code splitting**, so the public landing and customer ticket pages don't load the barber area.
 - The CSP is strict (`'self'` only). It will be extended deliberately when Supabase and Turnstile are integrated.
 
 ## 12. Milestone 1 deliverables (local backend and schema)
@@ -261,3 +261,53 @@ supabase/tests/concurrency/run.sh             independent psql clients racing (n
 - the idempotent replay check runs before the paused check;
 - `join_queue` returns `token_version` for link signing;
 - the duplicate-phone response is just `{result:'existing'}`.
+
+## 14. Milestone 3 deliverables (barber app)
+
+```
+src/lib/env.ts, supabase.ts, database.types.ts   public config (https-only except localhost), lazy client with
+                                                 detectSessionInUrl=false (ticket tokens live in the URL fragment),
+                                                 generated DB types (npm run db:types)
+src/features/auth/                               AuthProvider (Supabase Auth), RequireAuth guard, safeReturnPath
+src/features/shops/useMemberships.ts             the user's shops via RLS
+src/features/queue/                              typed API (explicit column lists, never select *), RPC error → i18n,
+                                                 hooks with Realtime ping + 20 s polling + refetch on (re)subscribe,
+                                                 LiveQueue, ticket cards, confirm/skip/phone/menu dialogs
+src/pages/barber/                                sign in, shop chooser, dashboard, settings
+src/components/layout/BarberShell.tsx            authenticated shell
+vite.config.ts → cspConnectSrc                   writes the Supabase https/wss origin into dist/_headers at build time
+e2e/                                             Playwright: fixtures (service-role onboarding, local only), barber specs
+supabase/migrations/20261119220100_…             FIX: service role can create shops (timezone CHECK privilege)
+.github/workflows/ci.yml                         + Playwright E2E step; actions bumped to v5
+```
+
+**Behaviour:**
+- **Routes:** `/barber/login` → `/barber` (one shop opens directly; several → chooser) → `/barber/:shopId` dashboard → `/barber/:shopId/settings`.
+- **Dashboard states:** no queue (open it) · closed today (reopen) · live.
+- **Live view:**
+  - **Header:** status, waiting count, wait estimate, pause/resume, close (confirmed).
+  - **CALL NEXT:** shows the next number; disabled while someone is called.
+  - **In service slot:** Complete.
+  - **Called slot:** time since called and grace countdown; Arrived → Start; Start without arrival (confirmed); On the way; Skip (reason required, no-show hidden for waiting customers); more actions.
+  - **Waiting list:** numbers and names only, with a per-ticket menu: phone (audited reveal), new link, skip, cancel (confirmed).
+- Every database refusal shows a translated message and triggers a refetch. Phone numbers never appear unless revealed.
+- **Settings:** owners edit within the database's CHECK ranges; barbers see the values read-only.
+- Fully translated in AR/FR/EN with RTL. Customer names are direction-isolated with `<bdi>`.
+
+**Verified:**
+- 56 unit/component tests; 185 pgTAP assertions; 14 concurrency checks.
+- **12 Playwright E2E tests** (6 scenarios × desktop + Pixel 7), all against the real local stack:
+  - wrong-password message; redirect to sign in;
+  - a full cycle with **live updates and no reloads** (customers joining from outside appear via Realtime);
+  - phone reveal; close then reopen;
+  - a database refusal (grace period) shown translated;
+  - settings: owner edits, barber read-only;
+  - the dashboard in Arabic RTL.
+- Visual check of EN/AR on desktop and phone. This found and fixed: the muddy disabled lime button, Arabic names misaligned in LTR lists, and label spacing.
+
+**Defects found by E2E and fixed:**
+1. **The service role could not create shops** (M1 privilege bug: the timezone CHECK calls an `app` function whose PUBLIC execute had been revoked). Fixed in migration `20261119220100`, with pgTAP regression test 09.
+2. A customer joining between the first fetch and the Realtime subscription only appeared at the next poll. Now the hook refetches when the channel subscribes.
+3. The settings form remounted after saving, which lost its "saved" confirmation. It's now keyed by shop.
+
+**Time zones:** both Node's and PostgreSQL's tz data (2026e) put `Africa/Casablanca` at UTC+0 on 19 Nov 2026 and UTC+1 on 1 Jul 2026. The app never assumes a fixed offset (TD issue 8).

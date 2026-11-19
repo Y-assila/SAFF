@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { Badge, EmptyState, buttonClasses } from '../components/ui'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
-export type PlaceholderKind = 'shop' | 'ticket' | 'barberSignIn' | 'dashboard'
+export type PlaceholderKind = 'shop' | 'ticket'
 
 /**
  * Honest placeholder for a route whose feature is not built yet.

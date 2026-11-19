@@ -4,7 +4,7 @@
 
 SAFF is a digital queue management platform for barbershops. Customers scan a shop's permanent QR code, join the queue with their name and phone number, receive a digital ticket and track their turn remotely. Barbers manage the queue from a dedicated dashboard.
 
-> Status: **Milestone 2**. Frontend foundation, plus the local Supabase backend: schema, state machine, RLS and the complete queue engine. Tests: 181 pgTAP assertions and 14 concurrency checks. The barber dashboard comes next (Milestone 3). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
+> Status: **Milestone 3**. The barber app (sign in, live queue dashboard, settings) runs on the local Supabase backend: schema, RLS and the queue engine. Next is the customer join and ticket flow (Milestone 4). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
 
 ## Stack
 
@@ -16,6 +16,14 @@ Requires Node.js 22+.
 
 ```bash
 npm install
+```
+
+```bash
+cp .env.example .env.local
+```
+
+```bash
+npm run db:start
 ```
 
 ```bash
@@ -38,6 +46,8 @@ Open http://localhost:5173. In development, the component gallery is at `/dev/ui
 | `npm run db:reset` | Re-create the local database from migrations + local seed |
 | `npm run db:test` | Run the pgTAP database tests |
 | `npm run db:test:concurrency` | Race real parallel clients against the queue engine (local DB only) |
+| `npm run test:e2e` | Playwright E2E against the local stack (needs `db:start` and `.env.local`) |
+| `npm run db:types` | Regenerate `src/lib/database.types.ts` from the local schema |
 
 ## Local database
 
@@ -56,7 +66,7 @@ Then add the membership in SQL (`insert into public.shop_members (shop_id, user_
 | Job | Steps |
 |---|---|
 | Frontend | `npm ci` → typecheck → lint → unit tests → production build |
-| Database | `npm ci` → start local Supabase in Docker (applies every migration from scratch) → pgTAP tests → concurrency tests |
+| Backend + E2E | `npm ci` → start local Supabase in Docker (applies every migration from scratch) → pgTAP tests → concurrency tests → Playwright E2E |
 
 ## Project layout
 
