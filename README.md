@@ -10,6 +10,25 @@ SAFF is a digital queue management platform for barbershops. Customers scan a sh
 
 React 19 · TypeScript · Vite · Tailwind CSS v4 · i18next · React Router. Planned: Supabase (PostgreSQL, Auth, Realtime, Edge Functions), WhatsApp Business Cloud API, Cloudflare Pages.
 
+## Try it locally
+
+You need **Git**, **Node.js 22+** and **Docker Desktop** (running).
+
+1. `git clone https://github.com/Y-assila/SAFF.git && cd SAFF && git checkout claude/admiring-ritchie-qq0lwm`
+2. `npm install`
+3. `cp .env.example .env.local` and `cp supabase/functions/.env.example supabase/functions/.env`
+4. `npm run db:start` (the first run downloads the Supabase images and takes a few minutes)
+5. `npm run demo:setup` creates a demo shop, two accounts and 3 waiting customers
+6. `npm run dev`, then open http://localhost:5173
+
+| What | Where |
+|---|---|
+| Customer (the QR page) | http://localhost:5173/s/demo-salon : join with any 06/07 mobile number |
+| Barber | http://localhost:5173/barber/login : `barber@saff.local` / `demo-password-123` |
+| Owner (can edit settings) | `owner@saff.local` / `demo-password-123` |
+
+Tip: open the barber dashboard and a customer ticket side by side (one normal window, one private window, or your phone on the same network) to watch live updates. Stop everything with `npm run db:stop`.
+
 ## Getting started
 
 Requires Node.js 22+.
@@ -52,6 +71,7 @@ Open http://localhost:5173. In development, the component gallery is at `/dev/ui
 | `npm run db:test:concurrency` | Race real parallel clients against the queue engine (local DB only) |
 | `npm run test:e2e` | Playwright E2E against the local stack (needs `db:start` and `.env.local`) |
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` from the local schema |
+| `npm run demo:setup` | Local demo shop, accounts and customers (local stack only; safe to re-run) |
 | `npm run edge:vendor` | Rebuild the Edge Functions' vendored libphonenumber bundle |
 
 ## Local database
