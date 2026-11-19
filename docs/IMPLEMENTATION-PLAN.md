@@ -6,7 +6,7 @@
 
 | Document | Location | Status |
 |---|---|---|
-| Technical Design v1 (Foundation) | `BarberQueue — Technical Design v1 (Foundation).docx` | Read in full. **Ends at §7.** It refers to §8 (remaining RPCs) and Phases 0–5, which are not in the file. |
+| Technical Design v1 (Foundation) | `BarberQueue — Technical Design v1 (Foundation).docx` | **Approved by the product owner on 19 Nov 2026**, including all 14 recommendations. Read in full. **Ends at §7.** It refers to §8 (remaining RPCs) and Phases 0–5, which are not in the file. |
 | PRD v1.0 | **Not in the repository** | The technical design cites it (§3.2, §5.4, §6.1–6.6, §7, §8, §11.5, §13, §18), but the file isn't here. |
 | Brand kit v1.2 | `SAFF_Exact_Logo_Brand_Kit_v1.2/` | Read in full: guidelines, tokens, logos, previews, showcase. |
 
@@ -149,8 +149,8 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 |---|---|---|---|
 | B-1 | **PRD v1.0 is missing from the repo.** | Ticket states, consent wording, retention and estimate rules can't be checked against the original. Risk of building on paraphrase. | Add the PRD (Markdown or docx) under `docs/`. |
 | B-2 | **TD is truncated after §7.** §8 ("remaining RPCs follow the same pattern") and the Phase plan are referenced but missing. | No specs for `start_queue`, `pause/resume`, `close_queue`, `reopen_queue`, `mark_arrived`, `start_service`, `skip_ticket`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`, or for the Edge Function contracts. | Supply §8+. Otherwise I can draft their specs from TD §1/§6 for approval *before* writing SQL. |
-| B-3 | **TD issue 6: phone ownership verification.** The TD marks this "**Decision needed**". | Changes the join flow and the schema (verification state, inbound webhook). | Decide: MVP without verification (flag `require_phone_verification=false`, as the TD proposes) or with it. |
-| B-4 | **The TD recommends 14 PRD changes** (status `expired`, extra transitions, `shop_settings`, HMAC tokens, phone hidden behind `reveal_phone`, 30-day anonymisation, ticket-number ordering, and more). | These alter the PRD's state machine and data model. The instructions forbid inventing or changing transitions. | Confirm that TD v1 as written is **approved**, including all 14 recommendations. |
+| ~~B-3~~ | **Resolved (TD approved):** the MVP ships without phone verification. Mitigations are Turnstile, rate limits, the per-shop cap and utility-only templates. `shop_settings.require_phone_verification` exists and defaults to `false`; inbound-WhatsApp verification is the next step after the MVP. | — | — |
+| ~~B-4~~ | **Resolved:** TD v1 is approved as written, including the 14 PRD changes (status `expired`, extra transitions, `shop_settings`, HMAC tokens, `reveal_phone`, 30-day anonymisation, ticket-number ordering, and the rest). The TD state machine (§4.4) is authoritative. | — | — |
 | B-5 | **Realtime public vs private channels** (TD §5: "we verify this in Phase 0"). | Decides whether customers can subscribe anonymously or need private channels with a `realtime.messages` policy. | Verify on the actual Supabase project once it exists (M1, step 0). |
 | B-6 | **Legal: Law 09-08 / CNDP declaration** (TD issue 9). | Retention period and consent text version are stored in the schema. | Legal confirmation of retention days and consent text before M4. Doesn't block M1. |
 
@@ -158,9 +158,9 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 
 | ID | Decision | Current state | Needed by |
 |---|---|---|---|
-| D-01 | Approve TD v1 in full (see B-4) | Pending | M1 |
+| D-01 | Approve TD v1 in full (see B-4) | **Approved 19 Nov 2026** | — |
 | D-02 | **Permanent QR URL format.** Once QR codes are printed, the URL can never change. Proposed: `https://<domain>/s/<slug>`. Slugs must then be immutable too. | `/s/:slug` used provisionally | Before any QR is printed (M4) |
-| D-03 | Phone verification in MVP (B-3) | Pending | M1 |
+| D-03 | Phone verification in MVP (B-3) | **No** (flag off; TD issue 6) | — |
 | D-04 | Production domain | Unknown | M4 (token links), M6 |
 | D-05 | Default UI language. TD defaults shops to `fr`; the app falls back to `fr` when neither the stored choice nor the browser language matches. | `fr` | M3 |
 | D-06 | Should the customer's ticket page follow the ticket `locale` or the browser? | Not specified | M4 |
