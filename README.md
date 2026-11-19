@@ -4,7 +4,7 @@
 
 SAFF is a digital queue management platform for barbershops. Customers scan a shop's permanent QR code, join the queue with their name and phone number, receive a digital ticket and track their turn remotely. Barbers manage the queue from a dedicated dashboard.
 
-> Status: **Milestone 1**. Frontend foundation, plus the local Supabase database: schema, ticket state machine, RLS and 74 pgTAP tests. Queue RPCs come next (Milestone 2). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
+> Status: **Milestone 2**. Frontend foundation, plus the local Supabase backend: schema, state machine, RLS and the complete queue engine. Tests: 181 pgTAP assertions and 14 concurrency checks. The barber dashboard comes next (Milestone 3). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
 
 ## Stack
 
@@ -37,6 +37,7 @@ Open http://localhost:5173. In development, the component gallery is at `/dev/ui
 | `npm run db:start` / `db:stop` | Start/stop the local Supabase stack (needs Docker) |
 | `npm run db:reset` | Re-create the local database from migrations + local seed |
 | `npm run db:test` | Run the pgTAP database tests |
+| `npm run db:test:concurrency` | Race real parallel clients against the queue engine (local DB only) |
 
 ## Local database
 

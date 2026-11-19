@@ -72,3 +72,18 @@ begin
 end $$;
 
 grant execute on all functions in schema tests to anon, authenticated, service_role;
+
+-- M2: run an RPC as a given barber and return its jsonb (restores postgres afterwards).
+create function tests.rpc_as(p_user uuid, p_sql text) returns jsonb
+language plpgsql as $$
+declare v jsonb;
+begin
+  perform tests.authenticate_as(p_user);
+  execute p_sql into v;
+  perform tests.as_postgres();
+  return v;
+exception when others then
+  perform tests.as_postgres();
+  raise;
+end $$;
+grant execute on function tests.rpc_as(uuid, text) to anon, authenticated, service_role;

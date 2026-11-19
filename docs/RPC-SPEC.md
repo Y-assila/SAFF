@@ -138,7 +138,7 @@ Used by `close_queue`, `start_queue` (stale session) and the nightly job. The ca
 
 ## 4. Ticket RPCs (barber)
 
-Every function takes `(p_session_id uuid, p_ticket_id uuid, …)`, locks the session, checks membership, re-reads the ticket, and raises `ticket_not_found` if the ticket is not in that session. Legal moves come from TD §4.4. The trigger is the backstop.
+Every function takes `(p_session_id uuid, p_ticket_id uuid, …)`, locks the session, checks membership, re-reads the ticket, and raises `ticket_not_found` if the ticket is not in that session. Legal moves come from TD §4.4. RPCs also enforce the `actors` column (`app.assert_transition`); the trigger is the backstop.
 
 ### 4.1 `call_next_customer(p_session_id)` [TD §6.3, reference implementation]
 The lowest-numbered `waiting` ticket changes to `getting_ready`, `called_at` is set, and one `turn_approaching` notification is queued (dedupe key `'called'`). It raises `called_slot_occupied`, `no_waiting_customers` or `queue_finished`. It never touches the customer in service.
@@ -159,7 +159,7 @@ The lowest-numbered `waiting` ticket changes to `getting_ready`, `called_at` is 
 ### 4.5 `complete_service(p_session_id, p_ticket_id)` [TD §6.3, reference implementation]
 `in_service → completed`. Repeating it returns `{result:'already_completed'}`. Nothing else is touched.
 
-### 4.6 `skip_ticket(p_session_id, p_ticket_id, p_reason public.skip_reason, p_note text default null)` [TD issue 11]
+### 4.6 `skip_ticket(p_session_id, p_ticket_id, p_reason public.skip_reason)` [TD issue 11]
 Allowed from `waiting` and from `CALLED` (TD §4.4). Skipping from `in_service` is not allowed.
 
 | Ticket status | Allowed reasons | Extra rule |
@@ -169,7 +169,7 @@ Allowed from `waiting` and from `CALLED` (TD §4.4). Skipping from `in_service` 
 | same | `barber_override` | allowed at any time; this is the audited override **[TD]** |
 | `waiting` | `unreachable`, `invalid_phone`, `barber_override` | `no_show_after_grace` raises `invalid_skip_reason` (a waiting customer was never called, so no grace period exists) **[Derived]** |
 
-- Sets `status = 'skipped'`, `skipped_at`, and `status_reason = p_reason`. Logs `ticket_skipped` with `reason = p_reason`. `p_note` is limited to 200 characters and stored in event metadata **only if it contains no phone pattern** **[Proposal Q-4: or drop free-text notes entirely, which is simpler and safer]**.
+- Sets `status = 'skipped'`, `skipped_at`, and `status_reason = p_reason`. Logs `ticket_skipped` with `reason = p_reason`. No free-text notes (approved Q-4).
 - If the ticket is already skipped, returns `{result:'already_skipped'}`.
 - A skipped ticket can never re-enter the queue. **[TD §4.4]**
 
@@ -198,8 +198,13 @@ Owners update `shop_settings` through the RLS policy and column grant **[TD §5.
 
 The Edge Function passes `p_ticket_id` and `p_token_version`, both taken from the verified token. Every function returns `not_found` when the ticket is missing, has a different `token_version`, or its session is neither live nor finished within the last 24 h. **[TD §7]** The Edge Function maps `not_found` to a generic HTTP 404.
 
-### 5.1 `join_queue(...)` [TD §6.3, reference implementation, unchanged]
+### 5.1 `join_queue(...)` [TD §6.3, reference implementation]
 Shop by slug, lock the live session, idempotency on `client_request_id`, duplicate active phone, cap, allocate the number, insert the ticket, log `ticket_joined`, notify `ticket_created`, bump.
+
+Implementation notes (M2):
+- **Ordering:** the idempotent replay check runs *before* the `queue_paused` check. A network retry of a join that already succeeded must return the same ticket even if the barber paused the queue in between. **[Derived]**
+- **Response:** `created` also returns `token_version`, which the Edge Function needs to sign the link. `existing` returns only `{result:'existing'}` (approved Q-10).
+- **Validation:** names containing control characters are refused (`invalid_name`). `client_request_id` is required (`invalid_request`).
 
 ### 5.2 `customer_confirm_on_the_way(p_ticket_id, p_token_version)`
 `getting_ready → on_the_way` (actor customer). If already `on_the_way`, returns `{result:'already_on_the_way'}`. Any other status raises `invalid_transition`. **[TD §4.4, §7: customers may only perform on_the_way and cancel]**

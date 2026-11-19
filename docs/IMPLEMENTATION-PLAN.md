@@ -1,6 +1,6 @@
 # SAFF — Implementation Plan
 
-*Status: Milestone 0 ✅ · Milestone 1 ✅ delivered for review · 19 Nov 2026*
+*Status: Milestone 0 ✅ · Milestone 1 ✅ · Milestone 2 ✅ delivered for review · 19 Nov 2026*
 
 ## 0. Sources of truth
 
@@ -59,7 +59,7 @@ Each milestone is reviewed before the next one starts.
 |---|---|---|---|
 | **0** | **Foundation** ✅ | Vite/React/TS, Tailwind tokens, fonts, i18n + RTL, app shell, UI primitives, exact logo, landing page, placeholder routes, Cloudflare headers | Build, typecheck, lint and tests all green. **Done; awaiting review.** |
 | **1** | **Local backend + schema** ✅ | Supabase CLI project; migrations for TD §4.1–4.5 (types, tenant tables, sessions, tickets, transitions, outbox, events, rate limits); privileges + RLS (TD §5); seed script for **local only** | `supabase db reset` works; pgTAP tests pass for RLS isolation and all invariants (§5). **Done: 8 migrations, 74 pgTAP tests; see §12.** |
-| 2 | Queue engine RPCs | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table) |
+| **2** | **Queue engine RPCs** ✅ | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table). **Done: 181 pgTAP assertions + 14 concurrency checks; see §13.** |
 | 3 | Barber app | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase |
 | 4 | Customer flow | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404 |
 | 5 | WhatsApp | Outbox dispatcher, templates (FR/AR), webhook signature verification, delivery statuses, retries, suppression | Failed sends never affect tickets; idempotency verified |
@@ -217,3 +217,47 @@ supabase/tests/database/                   pgTAP: 01 schema · 02 state machine 
 - Realtime: an anonymous client receives the ping on a public channel, and only after commit. This is TD §4.5's Phase 1 test, run manually here. It becomes an automated test in M3, once supabase-js is a project dependency.
 
 **Not in M1 (by plan):** queue RPCs (M2), Edge Functions (M4), pg_cron jobs (M6), CI workflow (proposed next).
+
+## 13. Milestone 2 deliverables (queue engine)
+
+```
+supabase/migrations/
+  20261119210100_engine_core.sql              app.lock_member_session, get_session_ticket,
+                                              assert_transition (enforces TD `actors`), apply_status
+                                              (timestamps, never overwritten), enqueue_notification,
+                                              shop_today, finish_session            (RPC-SPEC §1, §3.4)
+  20261119210200_queue_lifecycle_rpcs.sql     start/pause/resume/close/reopen_queue (RPC-SPEC §3)
+  20261119210300_barber_ticket_rpcs.sql       call_next_customer, mark_on_the_way, mark_arrived,
+                                              start_service, complete_service, skip_ticket,
+                                              barber_cancel_ticket, reveal_phone, reissue_ticket_link (§4)
+  20261119210400_customer_and_read_rpcs.sql   join_queue, customer_confirm_on_the_way,
+                                              customer_cancel_ticket, customer_get_ticket,
+                                              app.estimate_wait, public_get_shop, get_queue_stats (§5, §6)
+supabase/tests/database/05–08                 lifecycle · barber actions · customer/read · exposure
+supabase/tests/concurrency/run.sh             independent psql clients racing (npm run db:test:concurrency)
+```
+
+**Verified:**
+- **181 pgTAP assertions** across 8 files:
+  - lifecycle, including stale sessions (Q-1) and reopen (Q-2);
+  - FIFO calling, the called and in-service slots, `p_skip_arrival` audited;
+  - skip reasons and the grace period (Q-3, Q-4); phone reveal audited, with the 24 h scope and 30/h limit (Q-5);
+  - re-issued links revoke the old token;
+  - join validation, idempotency, duplicate phone (Q-10) and the active-ticket cap;
+  - the customer view contains no phone number; the wait-estimate arithmetic;
+  - public shop info (Q-7);
+  - the exact function-exposure table, read from the catalogue.
+- **14 concurrency checks** with real parallel clients, matching TD §6.1:
+  - 30 simultaneous joins get tickets 1..30 with no gaps;
+  - the same phone submitted twice at once gives one ticket;
+  - double CALL NEXT gives `called_slot_occupied`;
+  - skip vs start: the loser gets `invalid_transition`;
+  - double COMPLETE gives `already_completed`;
+  - cancel vs call: the next customer is called;
+  - join during close gives `queue_closed`.
+- **Through PostgREST with real JWTs:** barbers run the queue; `join_queue` is denied to anon and barbers and allowed only for the service role.
+
+**Deviations from the TD reference code (documented in RPC-SPEC §5.1):**
+- the idempotent replay check runs before the paused check;
+- `join_queue` returns `token_version` for link signing;
+- the duplicate-phone response is just `{result:'existing'}`.
