@@ -4,11 +4,16 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import i18n from '../i18n'
+import { AppProviders } from './AppProviders'
 import { createRoutes } from './routes'
 
 function renderAt(path: string, dev = false) {
   const router = createMemoryRouter(createRoutes({ dev }), { initialEntries: [path] })
-  return render(<RouterProvider router={router} />)
+  return render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  )
 }
 
 afterEach(async () => {
@@ -23,15 +28,20 @@ describe('routing', () => {
     expect(screen.getByRole('link', { name: 'SAFF — home' })).toBeInTheDocument()
   })
 
-  it.each([
-    ['/s/some-shop', 'Join the queue'],
-    ['/t', 'Your ticket'],
-    ['/barber/login', 'Barber sign in'],
-    ['/barber', 'Queue dashboard'],
-  ])('%s shows an honest "coming soon" placeholder', (path, title) => {
-    renderAt(path)
-    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
-    expect(screen.getByText('Coming soon')).toBeInTheDocument()
+  it('/t without a ticket on this device explains how to get one', async () => {
+    renderAt('/t')
+    expect(await screen.findByRole('heading', { name: 'No ticket on this device' })).toBeInTheDocument()
+  })
+
+  it('/barber redirects to sign in when there is no session', async () => {
+    renderAt('/barber')
+    // Unit tests have no backend configured, so the sign-in page explains that.
+    expect(await screen.findByRole('heading', { name: 'Sign in is not available' })).toBeInTheDocument()
+  })
+
+  it('/barber/<shop>/settings is also protected', async () => {
+    renderAt('/barber/00000000-0000-0000-0000-000000000000/settings')
+    expect(await screen.findByRole('heading', { name: 'Sign in is not available' })).toBeInTheDocument()
   })
 
   it('renders 404 for unknown paths', () => {

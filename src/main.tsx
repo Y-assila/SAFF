@@ -11,6 +11,7 @@ import '@fontsource/ibm-plex-sans-arabic/arabic-600.css'
 import '@fontsource/ibm-plex-sans-arabic/arabic-700.css'
 import './styles/index.css'
 
+import { AppProviders } from './app/AppProviders'
 import { createRoutes } from './app/routes'
 import { initI18n } from './i18n'
 
@@ -23,6 +24,8 @@ if (!container) throw new Error('Root element #root not found')
 
 createRoot(container).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
   </StrictMode>,
 )

@@ -1,6 +1,6 @@
 # SAFF — Implementation Plan
 
-*Status: Milestone 0 ✅ · Milestone 1 ✅ delivered for review · 19 Nov 2026*
+*Status: Milestones 0–4 ✅ (M4 delivered for review) · 19 Nov 2026*
 
 ## 0. Sources of truth
 
@@ -49,7 +49,7 @@ The six core decisions come from TD §0:
 | Tests | Vitest + Testing Library + jsdom (TD §2.3). Playwright and pgTAP arrive with later milestones. |
 | Lint | oxlint (the current Vite template default). |
 
-Not added yet, deferred to the milestone that needs them (all are already approved in TD §2.3): TanStack Query, Zod, libphonenumber-js, `@supabase/supabase-js`, Turnstile.
+Added in M3: `@supabase/supabase-js`, TanStack Query, Playwright. Added in M4: libphonenumber-js (browser + vendored for Edge Functions) and Cloudflare Turnstile. Zod was not needed: the Edge Functions use small hand-written validators, so they import nothing at runtime.
 
 ## 2. Milestones
 
@@ -59,9 +59,9 @@ Each milestone is reviewed before the next one starts.
 |---|---|---|---|
 | **0** | **Foundation** ✅ | Vite/React/TS, Tailwind tokens, fonts, i18n + RTL, app shell, UI primitives, exact logo, landing page, placeholder routes, Cloudflare headers | Build, typecheck, lint and tests all green. **Done; awaiting review.** |
 | **1** | **Local backend + schema** ✅ | Supabase CLI project; migrations for TD §4.1–4.5 (types, tenant tables, sessions, tickets, transitions, outbox, events, rate limits); privileges + RLS (TD §5); seed script for **local only** | `supabase db reset` works; pgTAP tests pass for RLS isolation and all invariants (§5). **Done: 8 migrations, 74 pgTAP tests; see §12.** |
-| 2 | Queue engine RPCs | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table) |
-| 3 | Barber app | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase |
-| 4 | Customer flow | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404 |
+| **2** | **Queue engine RPCs** ✅ | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table). **Done: 181 pgTAP assertions + 14 concurrency checks; see §13.** |
+| **3** | **Barber app** ✅ | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase. **Done: see §14.** |
+| **4** | **Customer flow** ✅ | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404. **Done: see §15.** |
 | 5 | WhatsApp | Outbox dispatcher, templates (FR/AR), webhook signature verification, delivery statuses, retries, suppression | Failed sends never affect tickets; idempotency verified |
 | 6 | Hardening + launch | Retention/anonymisation job, nightly stale-session job, monitoring, backups, staging→prod, legal (CNDP), QR generation & print | Security review checklist complete; staging soak test |
 
@@ -116,7 +116,7 @@ Production migrations are applied only through CI from reviewed PRs, never by ha
 | Edge Functions | Deno test | Validation, rate limits, token verification, error mapping (generic 404) |
 | E2E | Playwright | Customer join/track, barber cycle, AR/FR/EN, mobile viewport, Realtime + polling fallback |
 | Accessibility | Testing Library roles + axe in Playwright | Landmarks, labels, focus, contrast |
-| CI | GitHub Actions | `typecheck`, `lint`, `test`, `build`, then pgTAP against an ephemeral local Supabase, then E2E |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) ✅ | Frontend job: `typecheck`, `lint`, `test`, `build`. Database job: fresh local Supabase, pgTAP, concurrency suite. E2E is added in M3/M4. |
 
 ## 7. Deployment plan
 
@@ -152,7 +152,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 | ~~B-3~~ | **Resolved (TD approved):** the MVP ships without phone verification. Mitigations are Turnstile, rate limits, the per-shop cap and utility-only templates. `shop_settings.require_phone_verification` exists and defaults to `false`; inbound-WhatsApp verification is the next step after the MVP. | — | — |
 | ~~B-4~~ | **Resolved:** TD v1 is approved as written, including the 14 PRD changes (status `expired`, extra transitions, `shop_settings`, HMAC tokens, `reveal_phone`, 30-day anonymisation, ticket-number ordering, and the rest). The TD state machine (§4.4) is authoritative. | — | — |
 | ~~B-5~~ | **Resolved locally (M1):** an anonymous supabase-js client receives the public `qs:<session>` broadcast from `realtime.send(..., private => false)`. The payload is `{v, id}` (`id` is Realtime's message id), and the ping arrives only after commit. **Re-check once on the hosted staging project**, whose Realtime settings may restrict public channels. | — | — |
-| B-6 | **Legal: Law 09-08 / CNDP declaration** (TD issue 9). | Retention period and consent text version are stored in the schema. | Legal confirmation of retention days and consent text before M4. Doesn't block M1. |
+| B-6 | **Legal: Law 09-08 / CNDP.** | The consent text and the 30-day retention it promises. | **M4 ships a DRAFT consent text** (`draft-2026-11`, in AR/FR/EN, `src/features/customer/consent.ts`). **Must be approved by a Moroccan lawyer before launch.** Bump the version when the wording changes. |
 
 ## 10. Unresolved technical / product decisions
 
@@ -160,11 +160,11 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 |---|---|---|---|
 | D-01 | Approve TD v1 in full (see B-4) | **Approved 19 Nov 2026** | — |
 | D-16 | Approve RPC-SPEC (TD §8) | **Approved 19 Nov 2026** | — |
-| D-02 | **Permanent QR URL format.** Once QR codes are printed, the URL can never change. Proposed: `https://<domain>/s/<slug>`. Slugs must then be immutable too. | `/s/:slug` used provisionally | Before any QR is printed (M4) |
+| D-02 | **Permanent QR URL format** | **Decided 19 Nov 2026: `/s/<slug>`.** Slugs are immutable, enforced by a database trigger (migration `20261119230100`, pgTAP 10). | — |
 | D-03 | Phone verification in MVP (B-3) | **No** (flag off; TD issue 6) | — |
 | D-04 | Production domain | Unknown | M4 (token links), M6 |
 | D-05 | Default UI language. TD defaults shops to `fr`; the app falls back to `fr` when neither the stored choice nor the browser language matches. | `fr` | M3 |
-| D-06 | Should the customer's ticket page follow the ticket `locale` or the browser? | Not specified | M4 |
+| D-06 | Ticket page language | **Decided: the ticket's language** (the one the customer joined with); the customer can still switch. | — |
 | D-07 | **Brand: localised lockups.** The kit's primary SVG embeds the English tagline, and there is no Arabic lockup (صفّ) or wordmark-only file, although the showcase image shows them. The AR/FR UI currently uses the English lockup in the hero, the symbol in compact places, and the localised tagline as live text. | Workaround in place | Before launch |
 | D-08 | **Brand: French tagline.** The kit gives only EN and AR. I used "Votre tour. À votre rythme." as a **draft**. | Needs approval | Before launch |
 | D-09 | **Brand: error colour.** The kit defines no functional colour for errors. A provisional `--color-danger: #FF6B6B` is used only for validation and errors, always with an icon and text. | Needs approval | M3 |
@@ -178,7 +178,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 ## 11. Known limitations of Milestone 0
 
 - FR and AR copy is machine-quality and needs native review before launch.
-- The main JS bundle is ~397 kB (~126 kB gzip): React 19 + router + i18next. Route-level code splitting comes with M3/M4, once real feature pages exist.
+- Bundle (M4, after route-level code splitting): entry 333 kB (104 kB gzip). supabase-js (227 kB) loads only on the shop, ticket and barber pages. The ticket page's own chunk is 4 kB. The shop page chunk (126 kB) includes libphonenumber's minimal metadata.
 - The CSP is strict (`'self'` only). It will be extended deliberately when Supabase and Turnstile are integrated.
 
 ## 12. Milestone 1 deliverables (local backend and schema)
@@ -216,4 +216,149 @@ supabase/tests/database/                   pgTAP: 01 schema · 02 state machine 
 - Checked again through the live HTTP APIs: sign-up returns `signup_disabled`; an admin-created user gets a profile; anon REST reads and RPC calls are denied; a signed-in user without a shop sees `[]`.
 - Realtime: an anonymous client receives the ping on a public channel, and only after commit. This is TD §4.5's Phase 1 test, run manually here. It becomes an automated test in M3, once supabase-js is a project dependency.
 
-**Not in M1 (by plan):** queue RPCs (M2), Edge Functions (M4), pg_cron jobs (M6), CI workflow (proposed next).
+**Not in M1 (by plan):** queue RPCs (M2), Edge Functions (M4), pg_cron jobs (M6). CI was added after M2.
+
+## 13. Milestone 2 deliverables (queue engine)
+
+```
+supabase/migrations/
+  20261119210100_engine_core.sql              app.lock_member_session, get_session_ticket,
+                                              assert_transition (enforces TD `actors`), apply_status
+                                              (timestamps, never overwritten), enqueue_notification,
+                                              shop_today, finish_session            (RPC-SPEC §1, §3.4)
+  20261119210200_queue_lifecycle_rpcs.sql     start/pause/resume/close/reopen_queue (RPC-SPEC §3)
+  20261119210300_barber_ticket_rpcs.sql       call_next_customer, mark_on_the_way, mark_arrived,
+                                              start_service, complete_service, skip_ticket,
+                                              barber_cancel_ticket, reveal_phone, reissue_ticket_link (§4)
+  20261119210400_customer_and_read_rpcs.sql   join_queue, customer_confirm_on_the_way,
+                                              customer_cancel_ticket, customer_get_ticket,
+                                              app.estimate_wait, public_get_shop, get_queue_stats (§5, §6)
+supabase/tests/database/05–08                 lifecycle · barber actions · customer/read · exposure
+supabase/tests/concurrency/run.sh             independent psql clients racing (npm run db:test:concurrency)
+```
+
+**Verified:**
+- **181 pgTAP assertions** across 8 files:
+  - lifecycle, including stale sessions (Q-1) and reopen (Q-2);
+  - FIFO calling, the called and in-service slots, `p_skip_arrival` audited;
+  - skip reasons and the grace period (Q-3, Q-4); phone reveal audited, with the 24 h scope and 30/h limit (Q-5);
+  - re-issued links revoke the old token;
+  - join validation, idempotency, duplicate phone (Q-10) and the active-ticket cap;
+  - the customer view contains no phone number; the wait-estimate arithmetic;
+  - public shop info (Q-7);
+  - the exact function-exposure table, read from the catalogue.
+- **14 concurrency checks** with real parallel clients, matching TD §6.1:
+  - 30 simultaneous joins get tickets 1..30 with no gaps;
+  - the same phone submitted twice at once gives one ticket;
+  - double CALL NEXT gives `called_slot_occupied`;
+  - skip vs start: the loser gets `invalid_transition`;
+  - double COMPLETE gives `already_completed`;
+  - cancel vs call: the next customer is called;
+  - join during close gives `queue_closed`.
+- **Through PostgREST with real JWTs:** barbers run the queue; `join_queue` is denied to anon and barbers and allowed only for the service role.
+
+**Deviations from the TD reference code (documented in RPC-SPEC §5.1):**
+- the idempotent replay check runs before the paused check;
+- `join_queue` returns `token_version` for link signing;
+- the duplicate-phone response is just `{result:'existing'}`.
+
+## 14. Milestone 3 deliverables (barber app)
+
+```
+src/lib/env.ts, supabase.ts, database.types.ts   public config (https-only except localhost), lazy client with
+                                                 detectSessionInUrl=false (ticket tokens live in the URL fragment),
+                                                 generated DB types (npm run db:types)
+src/features/auth/                               AuthProvider (Supabase Auth), RequireAuth guard, safeReturnPath
+src/features/shops/useMemberships.ts             the user's shops via RLS
+src/features/queue/                              typed API (explicit column lists, never select *), RPC error → i18n,
+                                                 hooks with Realtime ping + 20 s polling + refetch on (re)subscribe,
+                                                 LiveQueue, ticket cards, confirm/skip/phone/menu dialogs
+src/pages/barber/                                sign in, shop chooser, dashboard, settings
+src/components/layout/BarberShell.tsx            authenticated shell
+vite.config.ts → cspConnectSrc                   writes the Supabase https/wss origin into dist/_headers at build time
+e2e/                                             Playwright: fixtures (service-role onboarding, local only), barber specs
+supabase/migrations/20261119220100_…             FIX: service role can create shops (timezone CHECK privilege)
+.github/workflows/ci.yml                         + Playwright E2E step; actions bumped to v5
+```
+
+**Behaviour:**
+- **Routes:** `/barber/login` → `/barber` (one shop opens directly; several → chooser) → `/barber/:shopId` dashboard → `/barber/:shopId/settings`.
+- **Dashboard states:** no queue (open it) · closed today (reopen) · live.
+- **Live view:**
+  - **Header:** status, waiting count, wait estimate, pause/resume, close (confirmed).
+  - **CALL NEXT:** shows the next number; disabled while someone is called.
+  - **In service slot:** Complete.
+  - **Called slot:** time since called and grace countdown; Arrived → Start; Start without arrival (confirmed); On the way; Skip (reason required, no-show hidden for waiting customers); more actions.
+  - **Waiting list:** numbers and names only, with a per-ticket menu: phone (audited reveal), new link, skip, cancel (confirmed).
+- Every database refusal shows a translated message and triggers a refetch. Phone numbers never appear unless revealed.
+- **Settings:** owners edit within the database's CHECK ranges; barbers see the values read-only.
+- Fully translated in AR/FR/EN with RTL. Customer names are direction-isolated with `<bdi>`.
+
+**Verified:**
+- 56 unit/component tests; 185 pgTAP assertions; 14 concurrency checks.
+- **12 Playwright E2E tests** (6 scenarios × desktop + Pixel 7), all against the real local stack:
+  - wrong-password message; redirect to sign in;
+  - a full cycle with **live updates and no reloads** (customers joining from outside appear via Realtime);
+  - phone reveal; close then reopen;
+  - a database refusal (grace period) shown translated;
+  - settings: owner edits, barber read-only;
+  - the dashboard in Arabic RTL.
+- Visual check of EN/AR on desktop and phone. This found and fixed: the muddy disabled lime button, Arabic names misaligned in LTR lists, and label spacing.
+
+**Defects found by E2E and fixed:**
+1. **The service role could not create shops** (M1 privilege bug: the timezone CHECK calls an `app` function whose PUBLIC execute had been revoked). Fixed in migration `20261119220100`, with pgTAP regression test 09.
+2. A customer joining between the first fetch and the Realtime subscription only appeared at the next poll. Now the hook refetches when the channel subscribes.
+3. The settings form remounted after saving, which lost its "saved" confirmation. It's now keyed by shop.
+
+**Time zones:** both Node's and PostgreSQL's tz data (2026e) put `Africa/Casablanca` at UTC+0 on 19 Nov 2026 and UTC+1 on 1 Jul 2026. The app never assumes a fixed offset (TD issue 8).
+
+## 15. Milestone 4 deliverables (customer flow)
+
+```
+supabase/functions/
+  _shared/token.ts          HMAC ticket tokens v1 (WebCrypto; constant-time verify; unit-tested in Node)
+  _shared/http.ts           origin allow-list, no-store/no-referrer JSON, hardened client IP (rightmost XFF hop)
+  _shared/db.ts             fetch-based PostgREST client (service role, server only)
+  _shared/ratelimit.ts      HMAC(pepper)-keyed limits (approved Q-9 values)
+  _shared/turnstile.ts      siteverify, fail-closed; URL override allowed only when SAFF_ENVIRONMENT=local
+  _shared/phone.ts          E.164, region MA, mobile only (approved Q-8)
+  _shared/ticketAuth.ts     token → ticket; generic 404, failures rate-limited per IP
+  _vendor/libphonenumber.js GENERATED bundle (npm run edge:vendor): no runtime package downloads
+  join-queue/, ticket-get/, ticket-action/   (verify_jwt = false; each function authenticates itself)
+  .env.example              LOCAL-only settings (Cloudflare test secret, dev-only secrets)
+supabase/migrations/20261119230100_shop_slug_immutable.sql   D-02
+src/features/customer/      API client, token storage (fragment → device; stripped from URL), Turnstile loader/widget, consent version
+src/pages/customer/         ShopPage (/s/:slug), JoinForm, TicketPage (/t)
+src/app/routes.tsx          route-level code splitting; barber auth scoped to barber routes
+e2e/customer.spec.ts, e2e/api-security.spec.ts, e2e/turnstile*.ts   hermetic Turnstile (test double container + widget stand-in)
+```
+
+**Flow:**
+1. QR → `/s/<slug>` (public shop info, about N waiting).
+2. Join form: name; mobile number; explicit, unchecked consent naming the shop; Turnstile.
+3. `join-queue` runs, in order: origin check → per-IP limit → Turnstile → mobile normalisation → per-phone and per-shop limits → `join_queue` → signed token.
+4. The token is stored on the device, and a **full page load** goes to `/t` (the ticket page starts without the Turnstile script; the token is never in the address bar).
+5. `/t` shows: number, people ahead, estimate, the number now being served, a called banner with grace countdown, *I'm on my way*, and cancel (with confirmation).
+6. Updates: Realtime ping + 20 s polling + refetch on subscribe. Opens in the ticket's language (D-06).
+7. Duplicate phone: "you already have a ticket", plus whether the link was re-sent by WhatsApp. No id, number or name is returned.
+
+**Verified:**
+- 72 unit/component tests (token round-trip, tampering, revocation, weak secrets; join form; ticket page; token storage).
+- 188 pgTAP assertions; 14 concurrency checks.
+- **30 Playwright tests** (desktop + Pixel 7) against the real stack, including:
+  - join from the QR page → private ticket, with no token in the URL and no third-party scripts on `/t`;
+  - live update when the barber calls → *on my way*;
+  - cancel; duplicate phone; landline refused; consent required; closed and unknown shops; Arabic → RTL ticket;
+  - **API security:** missing origin 403; forged captcha 403; landline 400; tampered, forged and revoked tokens give an identical 404; only on_the_way/cancel allowed;
+  - **rate limit:** the 11th join is refused **even with forged X-Forwarded-For / CF-Connecting-IP**.
+
+**Defects found and fixed in M4:**
+1. **Rate-limit bypass:** the client IP came from the first `X-Forwarded-For` entry and from any client-sent `CF-Connecting-IP`, both forgeable. Now the rightmost hop is used (`TRUSTED_PROXY_HOPS`), and CF-Connecting-IP only with `TRUST_CF_CONNECTING_IP=true`. A regression test covers it.
+2. In Arabic, the ticket number was left-aligned. Now only the digits are isolated LTR.
+3. The grace countdown could show more than the grace period when the device clock lags. Now clamped.
+
+**Must be verified on hosted staging (cannot be checked locally):**
+- **Proxy chain:** set `TRUSTED_PROXY_HOPS` / `TRUST_CF_CONNECTING_IP` so the per-IP limit sees real client IPs.
+- **CORS:** the local gateway adds `Access-Control-Allow-Origin: *` to function responses. Confirm hosted functions return only the allow-listed origin. Protection doesn't depend on this header: join enforces Origin and Turnstile server-side, and the ticket endpoints need the HMAC token.
+- **Turnstile** with real (non-test) keys, end to end. Tests here use Cloudflare's documented test keys through an offline double, because this environment can't reach Cloudflare.
+- **Production secrets:** `TICKET_HMAC_SECRET_V1` and `RATE_LIMIT_PEPPER` must be long random values set with `supabase secrets set`. Never reuse the local ones.

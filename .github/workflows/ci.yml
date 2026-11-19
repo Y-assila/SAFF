@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: CI only reads the repository.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels the run in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (typecheck, lint, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and component tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  database:
+    name: Backend + E2E (migrations, Edge Functions, pgTAP, concurrency, Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # Installs the Supabase CLI pinned in package-lock.json (no separate version to drift).
+      - name: Install dependencies
+        run: npm ci
+
+      # Edge Functions: local settings; Turnstile verification goes to the offline test double that
+      # the E2E setup starts on the Supabase network (allowed only with SAFF_ENVIRONMENT=local).
+      - name: Configure Edge Functions (local, hermetic)
+        run: |
+          cp supabase/functions/.env.example supabase/functions/.env
+          sed -i 's|^TURNSTILE_VERIFY_URL=.*|TURNSTILE_VERIFY_URL=http://saff-turnstile-mock:8080/siteverify|' supabase/functions/.env
+
+      - name: Start local Supabase (applies all migrations from scratch)
+        run: npm run db:start
+
+      - name: pgTAP database tests
+        run: npm run db:test
+
+      - name: Concurrency tests (parallel clients)
+        run: npm run db:test:concurrency
+
+      # E2E: the Vite dev server talks to the local stack using the public local defaults.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests (barber + customer flows, Edge Function security)
+        run: |
+          cp .env.example .env.local
+          npm run test:e2e -- --trace off
+
+      - name: Supabase logs on failure
+        if: failure()
+        run: docker ps -a && docker logs supabase_db_saff --tail 200 || true
+
+      - name: Stop Supabase
+        if: always()
+        run: npm run db:stop -- --no-backup

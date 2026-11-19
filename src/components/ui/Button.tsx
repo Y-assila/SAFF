@@ -34,7 +34,7 @@ export function Button({
       {...props}
     >
       {loading ? <Spinner className="size-4" /> : startIcon}
-      <span>{children}</span>
+      <span className="inline-flex items-center gap-2">{children}</span>
       {!loading && endIcon}
     </button>
   )

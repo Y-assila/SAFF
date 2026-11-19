@@ -27,3 +27,6 @@ dist-ssr
 !.env.example
 coverage
 .wrangler
+test-results
+playwright-report
+supabase/functions/.env
