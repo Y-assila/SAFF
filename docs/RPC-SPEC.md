@@ -1,6 +1,6 @@
 # SAFF: Queue Engine & API Specification (Technical Design §8)
 
-*Draft v0.1 · 19 Nov 2026 · Status: **awaiting approval** · Completes the approved Technical Design v1 (TD), which refers to a §8 it does not contain.*
+*v1.0 · 19 Nov 2026 · Status: **approved by the product owner on 19 Nov 2026** (all §9 defaults accepted) · Completes the approved Technical Design v1 (TD), which refers to a §8 it does not contain.*
 
 ## How to read this document
 
@@ -328,7 +328,7 @@ Jobs are idempotent and lock sessions with the same protocol (§1.2). Trigger no
 
 ---
 
-## 9. Open questions (need your decision; defaults are used if you approve this document as is)
+## 9. Decisions (approved defaults)
 
 | # | Question | Default proposed |
 |---|---|---|

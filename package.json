@@ -13,7 +13,11 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:start": "supabase start -x edge-runtime,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit,studio,storage-api",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
@@ -35,6 +39,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "jsdom": "^31.0.1",
     "oxlint": "^1.94.0",
+    "supabase": "^3.2.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~7.0.2",
     "vite": "^8.3.8",

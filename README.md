@@ -4,7 +4,7 @@
 
 SAFF is a digital queue management platform for barbershops. Customers scan a shop's permanent QR code, join the queue with their name and phone number, receive a digital ticket and track their turn remotely. Barbers manage the queue from a dedicated dashboard.
 
-> Status: **Milestone 0 (Foundation)**. Frontend shell, design system, i18n (AR/FR/EN with RTL) and landing page. No backend yet. See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
+> Status: **Milestone 1**. Frontend foundation, plus the local Supabase database: schema, ticket state machine, RLS and 74 pgTAP tests. Queue RPCs come next (Milestone 2). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
 
 ## Stack
 
@@ -34,12 +34,27 @@ Open http://localhost:5173. In development, the component gallery is at `/dev/ui
 | `npm run lint` | oxlint |
 | `npm test` | Vitest (unit, component, i18n, brand-asset integrity) |
 | `npm run preview` | Serve the production build |
+| `npm run db:start` / `db:stop` | Start/stop the local Supabase stack (needs Docker) |
+| `npm run db:reset` | Re-create the local database from migrations + local seed |
+| `npm run db:test` | Run the pgTAP database tests |
+
+## Local database
+
+Requires Docker. `npm run db:start` prints the local API URL and keys. These are Supabase's standard local development values, not secrets. Public sign-up is disabled, so create a barber account with the Auth admin API using the local service key:
+
+```bash
+curl -X POST http://127.0.0.1:54321/auth/v1/admin/users -H "apikey: $SERVICE_ROLE_KEY" -H "authorization: Bearer $SERVICE_ROLE_KEY" -H 'content-type: application/json' -d '{"email":"barber@test.local","password":"<password>","email_confirm":true}'
+```
+
+Then add the membership in SQL (`insert into public.shop_members (shop_id, user_id, role) ...`).
 
 ## Project layout
 
 ```
 docs/                         implementation plan, decisions, blockers
 SAFF_Exact_Logo_Brand_Kit_v1.2/  approved brand kit (source of truth, do not edit)
+supabase/migrations/          database schema (applied in order)
+supabase/tests/database/      pgTAP tests
 public/brand/                 exact copies of the logo files served by the app
 public/_headers, _redirects   Cloudflare Pages security headers and SPA fallback
 src/styles/index.css          brand tokens (Tailwind theme)

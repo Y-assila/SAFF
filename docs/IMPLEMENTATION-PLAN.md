@@ -1,6 +1,6 @@
 # SAFF — Implementation Plan
 
-*Status: Foundation (Milestone 0) delivered for review · 19 Nov 2026*
+*Status: Milestone 0 ✅ · Milestone 1 ✅ delivered for review · 19 Nov 2026*
 
 ## 0. Sources of truth
 
@@ -58,7 +58,7 @@ Each milestone is reviewed before the next one starts.
 | # | Milestone | Scope | Exit criteria |
 |---|---|---|---|
 | **0** | **Foundation** ✅ | Vite/React/TS, Tailwind tokens, fonts, i18n + RTL, app shell, UI primitives, exact logo, landing page, placeholder routes, Cloudflare headers | Build, typecheck, lint and tests all green. **Done; awaiting review.** |
-| 1 | Local backend + schema | Supabase CLI project; migrations for TD §4.1–4.5 (types, tenant tables, sessions, tickets, transitions, outbox, events, rate limits); privileges + RLS (TD §5); seed script for **local only** | `supabase db reset` works; pgTAP tests pass for RLS isolation and all invariants (§5) |
+| **1** | **Local backend + schema** ✅ | Supabase CLI project; migrations for TD §4.1–4.5 (types, tenant tables, sessions, tickets, transitions, outbox, events, rate limits); privileges + RLS (TD §5); seed script for **local only** | `supabase db reset` works; pgTAP tests pass for RLS isolation and all invariants (§5). **Done: 8 migrations, 74 pgTAP tests; see §12.** |
 | 2 | Queue engine RPCs | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table) |
 | 3 | Barber app | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase |
 | 4 | Customer flow | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404 |
@@ -148,10 +148,10 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 | # | Blocker | Impact | Suggested resolution |
 |---|---|---|---|
 | B-1 | **PRD v1.0 is missing from the repo.** | Ticket states, consent wording, retention and estimate rules can't be checked against the original. Risk of building on paraphrase. | Add the PRD (Markdown or docx) under `docs/`. |
-| B-2 | **TD is truncated after §7.** | The specs for the remaining RPCs, the Edge Functions and the jobs were missing. | **Drafted in [`RPC-SPEC.md`](RPC-SPEC.md), awaiting approval** (14 open questions with proposed defaults). |
+| ~~B-2~~ | **Resolved:** the missing TD §8 was written as [`RPC-SPEC.md`](RPC-SPEC.md) and **approved** (all §9 defaults accepted). | — | — |
 | ~~B-3~~ | **Resolved (TD approved):** the MVP ships without phone verification. Mitigations are Turnstile, rate limits, the per-shop cap and utility-only templates. `shop_settings.require_phone_verification` exists and defaults to `false`; inbound-WhatsApp verification is the next step after the MVP. | — | — |
 | ~~B-4~~ | **Resolved:** TD v1 is approved as written, including the 14 PRD changes (status `expired`, extra transitions, `shop_settings`, HMAC tokens, `reveal_phone`, 30-day anonymisation, ticket-number ordering, and the rest). The TD state machine (§4.4) is authoritative. | — | — |
-| B-5 | **Realtime public vs private channels** (TD §5: "we verify this in Phase 0"). | Decides whether customers can subscribe anonymously or need private channels with a `realtime.messages` policy. | Verify on the actual Supabase project once it exists (M1, step 0). |
+| ~~B-5~~ | **Resolved locally (M1):** an anonymous supabase-js client receives the public `qs:<session>` broadcast from `realtime.send(..., private => false)`. The payload is `{v, id}` (`id` is Realtime's message id), and the ping arrives only after commit. **Re-check once on the hosted staging project**, whose Realtime settings may restrict public channels. | — | — |
 | B-6 | **Legal: Law 09-08 / CNDP declaration** (TD issue 9). | Retention period and consent text version are stored in the schema. | Legal confirmation of retention days and consent text before M4. Doesn't block M1. |
 
 ## 10. Unresolved technical / product decisions
@@ -159,6 +159,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 | ID | Decision | Current state | Needed by |
 |---|---|---|---|
 | D-01 | Approve TD v1 in full (see B-4) | **Approved 19 Nov 2026** | — |
+| D-16 | Approve RPC-SPEC (TD §8) | **Approved 19 Nov 2026** | — |
 | D-02 | **Permanent QR URL format.** Once QR codes are printed, the URL can never change. Proposed: `https://<domain>/s/<slug>`. Slugs must then be immutable too. | `/s/:slug` used provisionally | Before any QR is printed (M4) |
 | D-03 | Phone verification in MVP (B-3) | **No** (flag off; TD issue 6) | — |
 | D-04 | Production domain | Unknown | M4 (token links), M6 |
@@ -179,3 +180,40 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 - FR and AR copy is machine-quality and needs native review before launch.
 - The main JS bundle is ~397 kB (~126 kB gzip): React 19 + router + i18next. Route-level code splitting comes with M3/M4, once real feature pages exist.
 - The CSP is strict (`'self'` only). It will be extended deliberately when Supabase and Turnstile are integrated.
+
+## 12. Milestone 1 deliverables (local backend and schema)
+
+```
+supabase/config.toml                       local stack; public sign-up disabled; storage/studio/mail off
+supabase/migrations/
+  20261119200100_types.sql                 app schema, enums, updated_at helper           (TD §4.1)
+  20261119200200_tenants.sql               shops, shop_settings (+auto row), profiles (+auto row on
+                                           auth signup), shop_members, app.is_shop_member  (TD §4.2)
+  20261119200300_queue_sessions.sql        sessions, one live session per shop             (TD §4.3)
+  20261119200400_tickets.sql               tickets, composite FKs, partial unique indexes  (TD §4.3)
+  20261119200500_ticket_state_machine.sql  ticket_transitions (20 rows) + triggers         (TD §4.4)
+  20261119200600_outbox_events_rate_limits.sql  notifications, append-only queue_events,
+                                           rate_limits + check_rate_limit                  (TD §4.5)
+  20261119200700_privileges_and_rls.sql    default deny, column grants, policies           (TD §5)
+  20261119200800_engine_helpers.sql        app.bump_session (Realtime ping), app.log_event (TD §4.5)
+supabase/seed.sql                          LOCAL ONLY: one demo shop, no customers
+supabase/tests/database/                   pgTAP: 01 schema · 02 state machine · 03 invariants · 04 RLS
+```
+
+**Additions beyond the TD SQL.** Each is marked `[Derived]` in the SQL and comes from TD rules or the ERD:
+- `app.touch_updated_at` keeps `updated_at` current on shops, settings and profiles.
+- `app.is_valid_timezone` check on `shops.timezone`, because a bad zone would break shop-local dates.
+- A settings row is created automatically with each shop, and a profile row with each auth user (both 1:1 relations in the ERD).
+- New tickets must start in `waiting`. This is enforced by an insert trigger, because the state machine has no other entry point.
+- `queue_events` also blocks `TRUNCATE`, since row triggers don't see truncation.
+- `check_rate_limit` validates its arguments.
+- EXECUTE on `app.*` functions is revoked from PUBLIC. PostgreSQL grants it by default and the TD SQL didn't remove it.
+
+**Verified:**
+- `supabase db reset` applies cleanly.
+- **74 pgTAP tests pass.** All 72 status changes are tried, and exactly the 20 approved ones are accepted. Every partial unique index and composite FK is tested, as are append-only events and the rate limiter. The Realtime payload carries only the version.
+- RLS is tested as real `authenticated`/`anon`/`service_role` roles: isolation between shops, phone columns refused, no direct writes, owner-only settings, and anon denied everything.
+- Checked again through the live HTTP APIs: sign-up returns `signup_disabled`; an admin-created user gets a profile; anon REST reads and RPC calls are denied; a signed-in user without a shop sees `[]`.
+- Realtime: an anonymous client receives the ping on a public channel, and only after commit. This is TD §4.5's Phase 1 test, run manually here. It becomes an automated test in M3, once supabase-js is a project dependency.
+
+**Not in M1 (by plan):** queue RPCs (M2), Edge Functions (M4), pg_cron jobs (M6), CI workflow (proposed next).
