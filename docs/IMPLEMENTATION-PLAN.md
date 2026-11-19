@@ -116,7 +116,7 @@ Production migrations are applied only through CI from reviewed PRs, never by ha
 | Edge Functions | Deno test | Validation, rate limits, token verification, error mapping (generic 404) |
 | E2E | Playwright | Customer join/track, barber cycle, AR/FR/EN, mobile viewport, Realtime + polling fallback |
 | Accessibility | Testing Library roles + axe in Playwright | Landmarks, labels, focus, contrast |
-| CI | GitHub Actions | `typecheck`, `lint`, `test`, `build`, then pgTAP against an ephemeral local Supabase, then E2E |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) ✅ | Frontend job: `typecheck`, `lint`, `test`, `build`. Database job: fresh local Supabase, pgTAP, concurrency suite. E2E is added in M3/M4. |
 
 ## 7. Deployment plan
 
@@ -216,7 +216,7 @@ supabase/tests/database/                   pgTAP: 01 schema · 02 state machine 
 - Checked again through the live HTTP APIs: sign-up returns `signup_disabled`; an admin-created user gets a profile; anon REST reads and RPC calls are denied; a signed-in user without a shop sees `[]`.
 - Realtime: an anonymous client receives the ping on a public channel, and only after commit. This is TD §4.5's Phase 1 test, run manually here. It becomes an automated test in M3, once supabase-js is a project dependency.
 
-**Not in M1 (by plan):** queue RPCs (M2), Edge Functions (M4), pg_cron jobs (M6), CI workflow (proposed next).
+**Not in M1 (by plan):** queue RPCs (M2), Edge Functions (M4), pg_cron jobs (M6). CI was added after M2.
 
 ## 13. Milestone 2 deliverables (queue engine)
 

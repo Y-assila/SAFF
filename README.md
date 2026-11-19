@@ -49,9 +49,19 @@ curl -X POST http://127.0.0.1:54321/auth/v1/admin/users -H "apikey: $SERVICE_ROL
 
 Then add the membership in SQL (`insert into public.shop_members (shop_id, user_id, role) ...`).
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and `claude/**` branches and on every pull request:
+
+| Job | Steps |
+|---|---|
+| Frontend | `npm ci` → typecheck → lint → unit tests → production build |
+| Database | `npm ci` → start local Supabase in Docker (applies every migration from scratch) → pgTAP tests → concurrency tests |
+
 ## Project layout
 
 ```
+.github/workflows/ci.yml      CI pipeline
 docs/                         implementation plan, decisions, blockers
 SAFF_Exact_Logo_Brand_Kit_v1.2/  approved brand kit (source of truth, do not edit)
 supabase/migrations/          database schema (applied in order)

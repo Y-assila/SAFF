@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: CI only reads the repository.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels the run in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (typecheck, lint, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and component tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  database:
+    name: Database (migrations, pgTAP, concurrency)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Installs the Supabase CLI pinned in package-lock.json (no separate version to drift).
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local Supabase (applies all migrations from scratch)
+        run: npm run db:start
+
+      - name: pgTAP database tests
+        run: npm run db:test
+
+      - name: Concurrency tests (parallel clients)
+        run: npm run db:test:concurrency
+
+      - name: Supabase logs on failure
+        if: failure()
+        run: docker ps -a && docker logs supabase_db_saff --tail 200 || true
+
+      - name: Stop Supabase
+        if: always()
+        run: npm run db:stop -- --no-backup
