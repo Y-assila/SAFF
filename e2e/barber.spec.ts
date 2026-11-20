@@ -124,3 +124,18 @@ test('the dashboard works in Arabic (RTL)', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'طابور اليوم' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'نادِ التالي' })).toBeVisible()
 })
+
+test('the shop QR poster encodes /s/<slug> and cannot be printed before the domain is set (D-04)', async ({ page }) => {
+  const { shop, owner } = await createShopWithStaff()
+  await signIn(page, owner.email)
+  await page.goto(`/barber/${shop.id}/qr`)
+  await expect(page.getByRole('alert')).toContainText('Not ready for printing')
+  await expect(page.getByRole('button', { name: 'Print poster' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Download QR (SVG)' })).toBeDisabled()
+  await expect(page.getByRole('img', { name: new RegExp(`/s/${shop.slug}$`) })).toBeVisible()
+  await expect(page.getByText('NOT FOR PRINTING')).toBeVisible()
+  // The call to action appears in all three languages on the poster.
+  for (const text of ['Scan to join the queue', 'Scannez pour rejoindre la file', 'امسح للانضمام إلى الطابور']) {
+    await expect(page.getByText(text)).toBeVisible()
+  }
+})

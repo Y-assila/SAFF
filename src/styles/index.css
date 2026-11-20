@@ -82,3 +82,24 @@
     }
   }
 }
+
+/* Printing the shop QR poster: only the poster, full page, colours preserved. */
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+  html,
+  body {
+    background: var(--color-midnight);
+  }
+  [data-print-hide],
+  [data-print-hide] * {
+    display: none !important;
+  }
+  [data-print-root] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    break-inside: avoid;
+  }
+}
