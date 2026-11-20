@@ -66,8 +66,12 @@ export function serve(handler: (req: Request) => Promise<Response>) {
     try {
       return await handler(req)
     } catch (e) {
-      // Log the class of failure only: never tokens, phone numbers or names.
-      console.error(e instanceof ConfigError ? `config: ${e.message}` : `internal: ${(e as Error)?.name ?? 'Error'}`)
+      // Log the class of failure and, for database errors, the database's code/message (e.g.
+      // "permission denied for table tickets"). Never tokens, phone numbers or names.
+      const code = (e as { code?: unknown })?.code
+      console.error(e instanceof ConfigError ? `config: ${e.message}`
+        : typeof code === 'string' ? `db: ${code.slice(0, 200)}`
+        : `internal: ${(e as Error)?.name ?? 'Error'}`)
       return error(req, 500, 'internal')
     }
   })

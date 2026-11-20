@@ -27,6 +27,7 @@ export async function rpc<T>(name: string, args: Record<string, unknown>): Promi
 /** Reads rows with a PostgREST query string, e.g. select('tickets', 'id=eq.X&select=token_version'). */
 export async function select<T>(table: string, query: string): Promise<T[]> {
   const res = await fetch(`${requireEnv('SUPABASE_URL')}/rest/v1/${table}?${query}`, { headers: headers() })
-  if (!res.ok) throw new DbError(`http_${res.status}`)
-  return (await res.json()) as T[]
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new DbError(typeof body?.message === 'string' ? body.message : `http_${res.status}`)
+  return body as T[]
 }
