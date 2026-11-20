@@ -16,17 +16,29 @@ function docker(args: string[]) {
   return execFileSync('docker', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
-export function startTurnstileMock() {
+/**
+ * Runs an offline test double (a tiny Deno server in e2e/<dir>) on the local Supabase network, using the
+ * edge-runtime image `supabase start` already pulled. `publish` exposes it on 127.0.0.1 only, for tests.
+ */
+export function startMockContainer(name: string, dir: string, publish?: string) {
   const image = docker(['inspect', '-f', '{{.Config.Image}}', 'supabase_edge_runtime_saff'])
   const network = docker(['inspect', '-f', '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}', 'supabase_edge_runtime_saff'])
-  try { docker(['rm', '-f', MOCK_CONTAINER]) } catch { /* not running */ }
-  docker(['run', '-d', '--name', MOCK_CONTAINER, '--network', network,
-    '-v', `${resolve('e2e/turnstile-mock')}:/mock:ro`, '--entrypoint', 'edge-runtime', image,
+  try { docker(['rm', '-f', name]) } catch { /* not running */ }
+  docker(['run', '-d', '--name', name, '--network', network, ...(publish ? ['-p', publish] : []),
+    '-v', `${resolve(dir)}:/mock:ro`, '--entrypoint', 'edge-runtime', image,
     'start', '--main-service=/mock', '--port=8080'])
 }
 
+export function stopMockContainer(name: string) {
+  try { docker(['rm', '-f', name]) } catch { /* already gone */ }
+}
+
+export function startTurnstileMock() {
+  startMockContainer(MOCK_CONTAINER, 'e2e/turnstile-mock')
+}
+
 export function stopTurnstileMock() {
-  try { docker(['rm', '-f', MOCK_CONTAINER]) } catch { /* already gone */ }
+  stopMockContainer(MOCK_CONTAINER)
 }
 
 const WIDGET_STUB = `

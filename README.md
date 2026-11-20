@@ -4,7 +4,7 @@
 
 SAFF is a digital queue management platform for barbershops. Customers scan a shop's permanent QR code, join the queue with their name and phone number, receive a digital ticket and track their turn remotely. Barbers manage the queue from a dedicated dashboard.
 
-> Status: **Milestone 4**. The customer flow (QR shop page, join form with bot check, private live ticket) and the barber app run on the local Supabase backend (schema, RLS, queue engine, Edge Functions). Next: WhatsApp notifications (Milestone 5). The consent text is a **draft pending legal review**. See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
+> Status: **Milestone 5**. Customer flow, barber app and the WhatsApp notification pipeline run on the local Supabase backend. WhatsApp live sending awaits Meta onboarding and template approval (`docs/WHATSAPP-TEMPLATES.md`). The consent text is a **draft pending legal review**. Next: hardening and launch (Milestone 6). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
 
 ## Stack
 
@@ -84,7 +84,11 @@ curl -X POST http://127.0.0.1:54321/auth/v1/admin/users -H "apikey: $SERVICE_ROL
 
 Then add the membership in SQL (`insert into public.shop_members (shop_id, user_id, role) ...`).
 
-**E2E tests** use an offline Turnstile double. Before `npm run db:start`, set `TURNSTILE_VERIFY_URL=http://saff-turnstile-mock:8080/siteverify` in `supabase/functions/.env`. The Playwright setup starts the double; CI does all of this automatically.
+**E2E tests** use offline doubles for Turnstile and the WhatsApp Cloud API. Before `npm run db:start`, set these in `supabase/functions/.env`:
+- `TURNSTILE_VERIFY_URL=http://saff-turnstile-mock:8080/siteverify`
+- `WHATSAPP_API_BASE=http://saff-whatsapp-mock:8080`
+
+The Playwright setup starts both doubles and points the dispatcher at them; CI does all of this automatically. Without them (normal local use), WhatsApp sends fail harmlessly, because the placeholder token is rejected by Meta, and tickets are unaffected.
 
 ## Continuous integration
 
