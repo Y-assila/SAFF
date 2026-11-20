@@ -280,6 +280,18 @@ const fr: Translation = {
       expired: 'La file a fermé avant votre tour.',
     },
   },
+  qr: {
+    nav: 'QR code',
+    title: 'QR code du salon',
+    intro: 'Imprimez cette affiche et placez-la à l’entrée. Les clients la scannent pour rejoindre la file.',
+    permanent: 'Adresse permanente (elle ne change jamais) :',
+    notPrintableTitle: 'Pas encore prêt à imprimer',
+    notPrintableBody: 'L’adresse web de production de SAFF n’est pas encore configurée : ce code sert uniquement aux tests. L’impression est désactivée en attendant.',
+    print: 'Imprimer l’affiche',
+    download: 'Télécharger le QR (SVG)',
+    scanCall: 'Scannez pour rejoindre la file',
+    watermark: 'NE PAS IMPRIMER',
+  },
   notFound: {
     title: 'Page introuvable',
     body: 'La page que vous cherchez n’existe pas ou a été déplacée.',

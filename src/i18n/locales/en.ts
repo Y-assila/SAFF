@@ -281,6 +281,18 @@ const en = {
       expired: 'The queue closed before your turn.',
     },
   },
+  qr: {
+    nav: 'QR code',
+    title: 'Shop QR code',
+    intro: 'Print this poster and put it at the entrance. Customers scan it to join the queue.',
+    permanent: 'Permanent address (it never changes):',
+    notPrintableTitle: 'Not ready for printing',
+    notPrintableBody: 'SAFF’s production web address is not configured yet, so this code is for testing only. Printing is disabled until it is.',
+    print: 'Print poster',
+    download: 'Download QR (SVG)',
+    scanCall: 'Scan to join the queue',
+    watermark: 'NOT FOR PRINTING',
+  },
   notFound: {
     title: 'Page not found',
     body: 'The page you are looking for does not exist or has moved.',

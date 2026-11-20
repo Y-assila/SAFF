@@ -14,6 +14,7 @@ const BarberLoginRoute = lazy(() => import('../features/auth/barberRoutes').then
 const BarberAreaRoute = lazy(() => import('../features/auth/barberRoutes').then((m) => ({ default: m.BarberAreaRoute })))
 const BarberHomePage = lazy(() => import('../pages/barber/BarberHomePage').then((m) => ({ default: m.BarberHomePage })))
 const DashboardPage = lazy(() => import('../pages/barber/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+const ShopQrPage = lazy(() => import('../pages/barber/ShopQrPage').then((m) => ({ default: m.ShopQrPage })))
 const SettingsPage = lazy(() => import('../pages/barber/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 // The DEV guard is statically replaced by Vite, so production builds do not even emit the chunk.
 const DesignSystemPage = import.meta.env.DEV ? lazy(() => import('../pages/DesignSystemPage')) : null
@@ -30,6 +31,7 @@ const load = (element: ReactNode) => <Suspense fallback={<LoadingState />}>{elem
  *   /barber/login              barber sign in (Supabase Auth)
  *   /barber                    shop resolution (one shop → its dashboard; several → choose)
  *   /barber/:shopId            queue dashboard
+ *   /barber/:shopId/qr         printable shop QR poster (watermarked until the production domain is set)
  *   /barber/:shopId/settings   shop settings (owner can edit; barbers read-only)
  *   /dev/ui                    component gallery — development builds only
  */
@@ -55,6 +57,7 @@ export function createRoutes({ dev = import.meta.env.DEV }: { dev?: boolean } = 
       children: [
         { index: true, element: load(<BarberHomePage />) },
         { path: ':shopId', element: load(<DashboardPage />) },
+        { path: ':shopId/qr', element: load(<ShopQrPage />) },
         { path: ':shopId/settings', element: load(<SettingsPage />) },
       ],
     },

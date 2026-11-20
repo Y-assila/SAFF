@@ -1,6 +1,6 @@
 # SAFF — Implementation Plan
 
-*Status: Milestones 0–5 ✅ (M5 delivered for review; WhatsApp live sending awaits Meta onboarding) · 20 Nov 2026*
+*Status: Milestones 0–6 ✅ in code (M6 delivered for review). Launch now depends on outside parties: hosting accounts, domain, Meta, legal · 20 Nov 2026*
 
 ## 0. Sources of truth
 
@@ -63,7 +63,7 @@ Each milestone is reviewed before the next one starts.
 | **3** | **Barber app** ✅ | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase. **Done: see §14.** |
 | **4** | **Customer flow** ✅ | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404. **Done: see §15.** |
 | **5** | **WhatsApp** ✅ (pipeline; live sending awaits Meta) | Outbox dispatcher, templates (FR/AR), webhook signature verification, delivery statuses, retries, suppression | Failed sends never affect tickets; idempotency verified. **Done: see §16.** |
-| 6 | Hardening + launch | Retention/anonymisation job, nightly stale-session job, monitoring, backups, staging→prod, legal (CNDP), QR generation & print | Security review checklist complete; staging soak test |
+| **6** | **Hardening + launch** ✅ (code; launch steps are external) | Retention/anonymisation job, nightly stale-session job, monitoring, backups, staging→prod, legal (CNDP), QR generation & print | Security review checklist complete; staging soak test |
 
 > **The WhatsApp Business onboarding (TD issue 14) should start now, in parallel.** It is the longest lead-time item.
 
@@ -162,7 +162,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 | D-16 | Approve RPC-SPEC (TD §8) | **Approved 19 Nov 2026** | — |
 | D-02 | **Permanent QR URL format** | **Decided 19 Nov 2026: `/s/<slug>`.** Slugs are immutable, enforced by a database trigger (migration `20261119230100`, pgTAP 10). | — |
 | D-03 | Phone verification in MVP (B-3) | **No** (flag off; TD issue 6) | — |
-| D-04 | Production domain | Unknown | M4 (token links), M6 |
+| D-04 | Production domain | **Not decided (20 Nov 2026).** Configurable via `VITE_PUBLIC_APP_URL`; QR posters are watermarked and printing is disabled until it is a public https origin. | Before printing QR codes |
 | D-05 | Default UI language. TD defaults shops to `fr`; the app falls back to `fr` when neither the stored choice nor the browser language matches. | `fr` | M3 |
 | D-06 | Ticket page language | **Decided: the ticket's language** (the one the customer joined with); the customer can still switch. | — |
 | D-07 | **Brand: localised lockups.** The kit's primary SVG embeds the English tagline, and there is no Arabic lockup (صفّ) or wordmark-only file, although the showcase image shows them. The AR/FR UI currently uses the English lockup in the hero, the symbol in compact places, and the localised tagline as live text. | Workaround in place | Before launch |
@@ -410,3 +410,31 @@ e2e/whatsapp-mock/, e2e/whatsapp.ts, e2e/whatsapp.spec.ts   Meta Cloud API test 
 4. As the service role, call `admin_configure_whatsapp_dispatch('https://<project>.supabase.co/functions/v1/whatsapp-dispatch', '<DISPATCH_SECRET>')`.
 5. In Meta's app dashboard, register the webhook `https://<project>.supabase.co/functions/v1/whatsapp-webhook` with the verify token, and subscribe to `messages`.
 6. On staging, with a Meta test number: send all three templates in all three languages, and check receipts arrive.
+
+## 17. Milestone 6 deliverables (hardening and launch readiness)
+
+```
+supabase/migrations/20261120200100_scheduled_jobs.sql
+    app.job_finish_stale_sessions   hourly :07  queues still open after 04:00 shop time on the next day (Q-12)
+    app.job_anonymize               daily 03:17 name/phone removed after pii_retention_days; stats kept
+    app.job_prune_rate_limits       hourly :27
+    public.ops_health()             service role: outbox, queues, retention, job runs (counts only)
+src/features/shops/qr.ts, src/pages/barber/ShopQrPage.tsx   /barber/:shopId/qr printable poster (A5),
+                                    QR encodes /s/<slug>; watermark + printing disabled until VITE_PUBLIC_APP_URL
+                                    is a public https origin (D-04); poster call to action in AR/FR/EN
+.github/workflows/deploy.yml        manual staging/production deploy: checks → tests → migrations (dry run, then
+                                    db push --remote) → Edge Functions → build → Cloudflare Pages
+docs/DEPLOYMENT.md, docs/OPERATIONS.md, docs/SECURITY-REVIEW.md
+```
+New dependency (approved 20 Nov 2026): `qrcode-generator` 2.0.4 (MIT, zero dependencies), barber area only.
+
+**Verified:**
+- 82 unit tests;
+- **234 pgTAP assertions** (19 new: stale-session closing incl. auto_closed service, idempotence, audit; anonymisation scope, statistics kept, notification phones removed; pruning; schedule; ops_health exposure);
+- 14 concurrency checks;
+- Playwright: QR poster test on desktop and mobile (encodes `/s/<slug>`, watermark, printing disabled);
+- `npm audit --omit=dev`: 0 vulnerabilities.
+
+**Found while writing the deploy workflow:** in Supabase CLI 3.x, `db push` targets the *local* database unless `--remote` is given, and `functions deploy` has no `--project-ref`. A naive workflow would have reported success without touching production. The workflow uses the verified flags and prints a dry run first.
+
+**What remains is outside the code** (see DEPLOYMENT.md §3 and SECURITY-REVIEW.md "Before launch"): Supabase and Cloudflare accounts, the production domain, Meta onboarding and template approval, legal approval of the consent text and the CNDP filing, native-speaker copy review, and a staging soak test.

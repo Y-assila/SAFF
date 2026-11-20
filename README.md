@@ -4,7 +4,7 @@
 
 SAFF is a digital queue management platform for barbershops. Customers scan a shop's permanent QR code, join the queue with their name and phone number, receive a digital ticket and track their turn remotely. Barbers manage the queue from a dedicated dashboard.
 
-> Status: **Milestone 5**. Customer flow, barber app and the WhatsApp notification pipeline run on the local Supabase backend. WhatsApp live sending awaits Meta onboarding and template approval (`docs/WHATSAPP-TEMPLATES.md`). The consent text is a **draft pending legal review**. Next: hardening and launch (Milestone 6). See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
+> Status: **Milestone 6 (launch readiness)**. All planned features are built and tested locally, including scheduled jobs, the shop QR poster, the deploy workflow and the runbooks. Launch depends on hosting accounts, the production domain, Meta approval and legal review. See `docs/DEPLOYMENT.md`, `docs/OPERATIONS.md` and `docs/SECURITY-REVIEW.md`. See [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md).
 
 ## Stack
 
@@ -98,6 +98,8 @@ The Playwright setup starts both doubles and points the dispatcher at them; CI d
 |---|---|
 | Frontend | `npm ci` → typecheck → lint → unit tests → production build |
 | Backend + E2E | `npm ci` → start local Supabase in Docker (applies every migration from scratch) → pgTAP tests → concurrency tests → Playwright E2E |
+
+Deployment is a separate, manual workflow (`.github/workflows/deploy.yml`). See `docs/DEPLOYMENT.md`.
 
 ## Project layout
 
