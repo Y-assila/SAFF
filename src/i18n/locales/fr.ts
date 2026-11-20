@@ -268,6 +268,8 @@ const fr: Translation = {
     cancelBody: 'Vous perdrez votre place dans la file.',
     keep: 'Garder mon ticket',
     actionFailed: 'Ce n’est plus possible. Votre ticket a été actualisé.',
+    loadErrorTitle: 'Impossible de charger votre ticket pour le moment',
+    loadErrorBody: 'Votre place dans la file est conservée. Vérifiez votre connexion et réessayez.',
     state: {
       waiting: 'Vous êtes dans la file',
       getting_ready: 'C’est bientôt votre tour. Merci de venir au salon maintenant.',

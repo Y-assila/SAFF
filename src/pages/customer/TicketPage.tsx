@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Button, Card, Dialog, EmptyState, LoadingState } from '../../components/ui'
+import { Badge, Button, Card, Dialog, EmptyState, ErrorState, LoadingState } from '../../components/ui'
 import { AlertIcon } from '../../components/ui/icons'
 import { CustomerApiError, getTicket, ticketAction, type TicketView } from '../../features/customer/api'
 import { loadTicketToken, takeTokenFromFragment } from '../../features/customer/ticketStorage'
@@ -63,6 +63,11 @@ export function TicketPage() {
 
   if (!token) return <EmptyState title={t('ticket.noTicketTitle')} description={t('ticket.noTicketBody')} />
   if (ticket.isPending) return <LoadingState />
+  // Only a genuine 404 means the link is invalid or replaced; anything else (network, server,
+  // misconfiguration) must not tell a customer their ticket is gone.
+  if (ticket.isError && !(ticket.error instanceof CustomerApiError && ticket.error.code === 'not_found')) {
+    return <ErrorState title={t('ticket.loadErrorTitle')} description={t('ticket.loadErrorBody')} onRetry={() => void ticket.refetch()} />
+  }
   if (ticket.isError || !view) {
     return <EmptyState title={t('ticket.invalidTitle')} description={t('ticket.invalidBody')} />
   }
