@@ -68,11 +68,13 @@ jobs:
       - name: Show pending migrations (dry run)
         run: npx supabase db push --remote --password "$SUPABASE_DB_PASSWORD" --dry-run
 
+      # The CLI asks for confirmation before changing a hosted project; CI has no terminal, so the
+      # (already printed) dry run above is the review step and --yes confirms it.
       - name: Apply database migrations (forward-only)
-        run: npx supabase db push --remote --password "$SUPABASE_DB_PASSWORD"
+        run: npx supabase db push --remote --password "$SUPABASE_DB_PASSWORD" --yes
 
       - name: Deploy Edge Functions
-        run: npx supabase functions deploy --use-api
+        run: npx supabase functions deploy --use-api --yes
 
       - name: Build frontend
         run: npm run build
