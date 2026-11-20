@@ -23,8 +23,8 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    // API-level security tests need no browser; run them once.
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: /api-security/ },
+    // API-level tests (security, WhatsApp) need no browser; run them once.
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: /api-security|whatsapp\.spec/ },
   ],
   webServer: {
     command: `npx vite --port ${PORT} --strictPort --host 127.0.0.1`,

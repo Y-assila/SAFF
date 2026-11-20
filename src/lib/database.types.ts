@@ -217,7 +217,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "barber_cancel_ticket":
+            "admin_configure_whatsapp_dispatch":
+{ Args: { "p_secret": string,"p_url": string }; Returns: undefined
+                           },
+"barber_cancel_ticket":
 { Args: { "p_session_id": string,"p_ticket_id": string }; Returns: Json
                            },
 "call_next_customer":
@@ -225,6 +228,9 @@ isOneToOne: false
                            },
 "check_rate_limit":
 { Args: { "p_key": string,"p_max": number,"p_window_seconds": number }; Returns: boolean
+                           },
+"claim_notifications":
+{ Args: { "p_limit"?: number }; Returns: Json[]
                            },
 "close_queue":
 { Args: { "p_session_id": string }; Returns: Json
@@ -250,6 +256,12 @@ isOneToOne: false
 "mark_arrived":
 { Args: { "p_session_id": string,"p_ticket_id": string }; Returns: Json
                            },
+"mark_notification_failed":
+{ Args: { "p_error_code": string,"p_error_message": string,"p_id": string,"p_retryable": boolean }; Returns: string
+                           },
+"mark_notification_sent":
+{ Args: { "p_id": string,"p_provider_message_id": string }; Returns: boolean
+                           },
 "mark_on_the_way":
 { Args: { "p_session_id": string,"p_ticket_id": string }; Returns: Json
                            },
@@ -258,6 +270,9 @@ isOneToOne: false
                            },
 "public_get_shop":
 { Args: { "p_slug": string }; Returns: Json
+                           },
+"record_whatsapp_status":
+{ Args: { "p_at": string,"p_error_code"?: string,"p_provider_message_id": string,"p_status": string }; Returns: boolean
                            },
 "reissue_ticket_link":
 { Args: { "p_session_id": string,"p_ticket_id": string }; Returns: Json

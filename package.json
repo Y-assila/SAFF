@@ -21,7 +21,8 @@
     "db:test:concurrency": "bash supabase/tests/concurrency/run.sh",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
     "test:e2e": "playwright test",
-    "edge:vendor": "node scripts/vendor-edge-deps.mjs"
+    "edge:vendor": "node scripts/vendor-edge-deps.mjs",
+    "demo:setup": "node scripts/demo-setup.mjs"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",

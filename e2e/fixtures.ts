@@ -86,3 +86,34 @@ export async function resetRateLimits() {
   const { error } = await adminClient().from('rate_limits').delete().gte('hits', 0)
   if (error) throw error
 }
+
+/**
+ * Waits until Realtime actually delivers database pings. On a freshly started stack, Realtime builds its
+ * broadcast pipeline lazily when the first client subscribes, and pings sent before that are dropped (the app
+ * then falls back to polling). Tests that assert live updates within seconds must start on a warm pipeline.
+ */
+export async function warmRealtime(timeoutMs = 60_000) {
+  const { shop, barber: staff } = await createShopWithStaff()
+  const barber = await barberClient(staff.email)
+  const { data, error } = await barber.rpc('start_queue', { p_shop_id: shop.id })
+  if (error) throw error
+  const sessionId = (data as { session_id: string }).session_id
+  const { url, anonKey } = localStack()
+  const listener = createClient<Database>(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  let received = false
+  const channel = listener.channel(`qs:${sessionId}`).on('broadcast', { event: 'queue_changed' }, () => { received = true })
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Realtime subscription timed out')), timeoutMs)
+    channel.subscribe((status) => { if (status === 'SUBSCRIBED') { clearTimeout(t); resolve() } })
+  })
+  const until = Date.now() + timeoutMs
+  let paused = false
+  while (!received) {
+    if (Date.now() > until) throw new Error('Realtime never delivered a ping')
+    // Each pause/resume commits a change, and every committed change sends one ping.
+    await barber.rpc(paused ? 'resume_queue' : 'pause_queue', { p_session_id: sessionId })
+    paused = !paused
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  await listener.removeChannel(channel)
+}

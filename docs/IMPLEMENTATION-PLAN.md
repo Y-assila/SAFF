@@ -1,6 +1,6 @@
 # SAFF — Implementation Plan
 
-*Status: Milestones 0–4 ✅ (M4 delivered for review) · 19 Nov 2026*
+*Status: Milestones 0–5 ✅ (M5 delivered for review; WhatsApp live sending awaits Meta onboarding) · 20 Nov 2026*
 
 ## 0. Sources of truth
 
@@ -62,7 +62,7 @@ Each milestone is reviewed before the next one starts.
 | **2** | **Queue engine RPCs** ✅ | `join_queue`, `start_queue`, `pause/resume`, `close_queue` (→ `expired`), `reopen_queue`, `call_next_customer`, `mark_arrived`, `start_service(p_skip_arrival)`, `complete_service`, `skip_ticket(reason)`, `cancel_ticket`, `reveal_phone`, `reissue_ticket_link`, `public_get_shop`; `bump_session` ping | pgTAP state-machine + concurrency tests (parallel joins, double CALL NEXT, etc., TD §6.1 table). **Done: 181 pgTAP assertions + 14 concurrency checks; see §13.** |
 | **3** | **Barber app** ✅ | Supabase Auth sign-in (public sign-up disabled), shop membership, dashboard with *In service* / *Called* slots, waiting list (names only), settings (owner); Realtime ping + 20 s polling fallback | Vitest + Playwright E2E against local Supabase. **Done: see §14.** |
 | **4** | **Customer flow** ✅ | Edge Functions `join-queue` (Turnstile, rate limits, E.164 normalisation, consent), `ticket-get`, `ticket-action`; HMAC tokens; shop page, join form, ticket page, on-the-way / cancel | E2E: join → track → call → serve; token tamper/guess tests return generic 404. **Done: see §15.** |
-| 5 | WhatsApp | Outbox dispatcher, templates (FR/AR), webhook signature verification, delivery statuses, retries, suppression | Failed sends never affect tickets; idempotency verified |
+| **5** | **WhatsApp** ✅ (pipeline; live sending awaits Meta) | Outbox dispatcher, templates (FR/AR), webhook signature verification, delivery statuses, retries, suppression | Failed sends never affect tickets; idempotency verified. **Done: see §16.** |
 | 6 | Hardening + launch | Retention/anonymisation job, nightly stale-session job, monitoring, backups, staging→prod, legal (CNDP), QR generation & print | Security review checklist complete; staging soak test |
 
 > **The WhatsApp Business onboarding (TD issue 14) should start now, in parallel.** It is the longest lead-time item.
@@ -362,3 +362,51 @@ e2e/customer.spec.ts, e2e/api-security.spec.ts, e2e/turnstile*.ts   hermetic Tur
 - **CORS:** the local gateway adds `Access-Control-Allow-Origin: *` to function responses. Confirm hosted functions return only the allow-listed origin. Protection doesn't depend on this header: join enforces Origin and Turnstile server-side, and the ticket endpoints need the HMAC token.
 - **Turnstile** with real (non-test) keys, end to end. Tests here use Cloudflare's documented test keys through an offline double, because this environment can't reach Cloudflare.
 - **Production secrets:** `TICKET_HMAC_SECRET_V1` and `RATE_LIMIT_PEPPER` must be long random values set with `supabase secrets set`. Never reuse the local ones.
+
+## 16. Milestone 5 deliverables (WhatsApp notifications)
+
+```
+supabase/migrations/20261120100100_whatsapp_outbox.sql
+    claim_notifications      claims due rows (FOR UPDATE SKIP LOCKED); applies suppression rules
+    mark_notification_sent / mark_notification_failed   settle; Q-11 backoff 1/5/15/60 min, max 5 attempts;
+                             phone numbers redacted from stored errors
+    record_whatsapp_status   delivery receipts, forward-only (sent → delivered → read; failed)
+    app.kick_whatsapp_dispatch + AFTER INSERT trigger   pg_net wake-up after commit; errors swallowed
+    app.whatsapp_sweep + pg_cron (every minute)         due retries, missed wake-ups, stuck 'sending'
+    admin_configure_whatsapp_dispatch                   stores dispatch URL + secret in Supabase Vault
+supabase/functions/whatsapp-dispatch/   internal; DISPATCH_SECRET; sends UTILITY templates via the Cloud API
+supabase/functions/whatsapp-webhook/    Meta handshake + X-Hub-Signature-256 verified receipts
+supabase/functions/_shared/whatsappMessages.ts, crypto.ts   pure, unit-tested (payloads, error classes, signatures)
+docs/WHATSAPP-TEMPLATES.md              template texts FR/AR/EN for Meta approval (Q-13)
+e2e/whatsapp-mock/, e2e/whatsapp.ts, e2e/whatsapp.spec.ts   Meta Cloud API test double + pipeline E2E
+```
+
+**Suppression rules** (a suppressed row is settled and never sent):
+- WhatsApp disabled for the shop;
+- ticket anonymised or no phone;
+- "turn approaching" for a customer no longer called;
+- re-sent link superseded by a newer token version.
+
+**Invariant held:** a WhatsApp outage, a misconfigured dispatcher or a pg_net error can never roll back or block a ticket change. All of these are tested.
+
+**Verified:**
+- 79 unit tests (7 new);
+- **215 pgTAP assertions** (27 new: claim, suppression, backoff, redaction, stuck-row recovery, forward-only receipts, service-role-only exposure, insert succeeds without configuration);
+- 14 concurrency checks;
+- **37 Playwright tests**, 3 consecutive green runs (7 new, against the real pipeline: outbox → pg_net → dispatch → Meta double → webhook):
+  - the template carries the right parameters, and its link opens the ticket;
+  - CALL NEXT sends "turn approaching";
+  - a temporary error schedules a retry with the ticket untouched;
+  - a permanent error fails without retry;
+  - nothing is sent when WhatsApp is disabled;
+  - the dispatcher rejects missing or wrong secrets;
+  - webhook handshake; unsigned or wrong-signature receipts get 401; delivered → read, and a late "sent" is ignored.
+- Confirmed in `net._http_response` that pg_net woke the dispatcher (6 calls, all HTTP 200).
+
+**To go live (needs Meta onboarding, TD issue 14):**
+1. Meta Business verification; register the SAFF sender number (it can't stay active in the normal WhatsApp app).
+2. Submit the three templates in `docs/WHATSAPP-TEMPLATES.md` (fr/ar/en, UTILITY) and wait for approval.
+3. `supabase secrets set`: `WHATSAPP_TOKEN` (system-user permanent token), `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `DISPATCH_SECRET` (long random), `APP_BASE_URL` (production origin). Never set `WHATSAPP_API_BASE` or `SAFF_ENVIRONMENT=local` in production.
+4. As the service role, call `admin_configure_whatsapp_dispatch('https://<project>.supabase.co/functions/v1/whatsapp-dispatch', '<DISPATCH_SECRET>')`.
+5. In Meta's app dashboard, register the webhook `https://<project>.supabase.co/functions/v1/whatsapp-webhook` with the verify token, and subscribe to `messages`.
+6. On staging, with a Meta test number: send all three templates in all three languages, and check receipts arrive.

@@ -439,3 +439,11 @@ verify_jwt = false
 
 [functions.ticket-action]
 verify_jwt = false
+
+# WhatsApp: dispatch is authenticated by DISPATCH_SECRET (called by the database), the webhook by
+# Meta's X-Hub-Signature-256. Neither receives a Supabase JWT.
+[functions.whatsapp-dispatch]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false

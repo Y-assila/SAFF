@@ -59,12 +59,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Edge Functions: local settings; Turnstile verification goes to the offline test double that
-      # the E2E setup starts on the Supabase network (allowed only with SAFF_ENVIRONMENT=local).
+      # Edge Functions: local settings. Turnstile verification and the WhatsApp Cloud API go to offline test
+      # doubles that the E2E setup starts on the Supabase network (allowed only with SAFF_ENVIRONMENT=local).
       - name: Configure Edge Functions (local, hermetic)
         run: |
           cp supabase/functions/.env.example supabase/functions/.env
           sed -i 's|^TURNSTILE_VERIFY_URL=.*|TURNSTILE_VERIFY_URL=http://saff-turnstile-mock:8080/siteverify|' supabase/functions/.env
+          sed -i 's|^WHATSAPP_API_BASE=.*|WHATSAPP_API_BASE=http://saff-whatsapp-mock:8080|' supabase/functions/.env
 
       - name: Start local Supabase (applies all migrations from scratch)
         run: npm run db:start
@@ -79,7 +80,7 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: End-to-end tests (barber + customer flows, Edge Function security)
+      - name: End-to-end tests (barber + customer flows, Edge Function security, WhatsApp pipeline)
         run: |
           cp .env.example .env.local
           npm run test:e2e -- --trace off
