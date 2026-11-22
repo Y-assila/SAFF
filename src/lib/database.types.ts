@@ -23,7 +23,27 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "notifications": {
+            "admin_audit_log": {
+                  Row: {
+                    "action": string,"actor_id": string | null,"created_at": string,"details": NonNullable<Json>,"id": number,"shop_id": string | null,"target_user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"actor_id"?: string | null,"created_at"?: string,"details"?: NonNullable<Json>,"id"?: never,"shop_id"?: string | null,"target_user_id"?: string | null
+                  }
+                  Update: {
+                    "action"?: string,"actor_id"?: string | null,"created_at"?: string,"details"?: NonNullable<Json>,"id"?: never,"shop_id"?: string | null,"target_user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "admin_audit_log_shop_id_fkey"
+      columns: ["shop_id"]
+isOneToOne: false
+      referencedRelation: "shops"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notifications": {
                   Row: {
                     "attempts": number,"created_at": string,"dedupe_key": string,"delivered_at": string | null,"error_code": string | null,"error_message": string | null,"failed_at": string | null,"id": string,"locked_at": string | null,"next_attempt_at": string,"notification_type": Database["public"]['Enums']["notification_type"],"provider_message_id": string | null,"read_at": string | null,"recipient_phone": string | null,"sent_at": string | null,"shop_id": string,"status": Database["public"]['Enums']["notification_status"],"template_language": string | null,"template_name": string | null,"ticket_id": string
                   }
@@ -42,6 +62,20 @@ isOneToOne: false
       referencedRelation: "tickets"
       referencedColumns: ["id","shop_id"]
     }
+                  ]
+                },"platform_admins": {
+                  Row: {
+                    "created_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
                   ]
                 },"profiles": {
                   Row: {
@@ -217,8 +251,50 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "admin_configure_whatsapp_dispatch":
+            "admin_add_member":
+{ Args: { "p_actor": string,"p_new_account": boolean,"p_role": Database["public"]['Enums']["shop_role"],"p_shop_id": string,"p_user_id": string }; Returns: Json
+                           },
+"admin_assert":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"admin_configure_whatsapp_dispatch":
 { Args: { "p_secret": string,"p_url": string }; Returns: undefined
+                           },
+"admin_create_shop":
+{ Args: { "p_address"?: string,"p_default_locale"?: string,"p_name": string,"p_phone"?: string,"p_slug": string,"p_timezone"?: string }; Returns: Json
+                           },
+"admin_get_shop":
+{ Args: { "p_shop_id": string }; Returns: Json
+                           },
+"admin_list_shops":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"admin_log_action":
+{ Args: { "p_action": string,"p_actor": string,"p_target": string }; Returns: undefined
+                           },
+"admin_lookup_user":
+{ Args: { "p_email": string }; Returns: Json
+                           },
+"admin_overview":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"admin_remove_member":
+{ Args: { "p_shop_id": string,"p_user_id": string }; Returns: Json
+                           },
+"admin_set_member_role":
+{ Args: { "p_role": Database["public"]['Enums']["shop_role"],"p_shop_id": string,"p_user_id": string }; Returns: Json
+                           },
+"admin_set_shop_active":
+{ Args: { "p_active": boolean,"p_shop_id": string }; Returns: Json
+                           },
+"admin_status":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"admin_update_shop":
+{ Args: { "p_address"?: string,"p_default_locale": string,"p_name": string,"p_phone"?: string,"p_shop_id": string }; Returns: Json
+                           },
+"admin_user_info":
+{ Args: { "p_user_id": string }; Returns: Json
                            },
 "barber_cancel_ticket":
 { Args: { "p_session_id": string,"p_ticket_id": string }; Returns: Json
@@ -264,6 +340,9 @@ isOneToOne: false
                            },
 "mark_on_the_way":
 { Args: { "p_session_id": string,"p_ticket_id": string }; Returns: Json
+                           },
+"ops_health":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "pause_queue":
 { Args: { "p_session_id": string }; Returns: Json

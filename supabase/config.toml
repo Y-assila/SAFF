@@ -312,8 +312,9 @@ max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+# SAFF team admins must use an authenticator app (decision D-17). Enabled by default on hosted projects.
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]
@@ -446,4 +447,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.whatsapp-webhook]
+verify_jwt = false
+
+# Account functions verify the caller's JWT themselves (admin-users through the database with
+# admin_assert, account-password through Supabase Auth).
+[functions.admin-users]
+verify_jwt = false
+
+[functions.account-password]
 verify_jwt = false

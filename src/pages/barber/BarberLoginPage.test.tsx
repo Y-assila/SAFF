@@ -7,7 +7,7 @@ import { AuthContext, type AuthState } from '../../features/auth/authContext'
 import { BarberLoginPage } from './BarberLoginPage'
 
 function renderLogin(auth: Partial<AuthState>) {
-  const value: AuthState = { configured: true, loading: false, session: null, signIn: vi.fn(), signOut: vi.fn(), ...auth }
+  const value: AuthState = { configured: true, loading: false, session: null, mustChangePassword: false, signIn: vi.fn(), signOut: vi.fn(), ...auth }
   const router = createMemoryRouter(
     [{ path: '/barber/login', element: <BarberLoginPage /> }, { path: '/barber', element: <p>dashboard</p> }],
     { initialEntries: ['/barber/login'] })

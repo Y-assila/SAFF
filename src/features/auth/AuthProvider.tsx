@@ -50,9 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear() // drop every cached shop/queue row of the previous user
   }, [configured, queryClient])
 
+  // app_metadata is set by the server only (admin-users / account-password functions).
+  const mustChangePassword = session?.user.app_metadata?.must_change_password === true
   const value = useMemo<AuthState>(
-    () => ({ configured, loading, session, signIn, signOut }),
-    [configured, loading, session, signIn, signOut],
+    () => ({ configured, loading, session, mustChangePassword, signIn, signOut }),
+    [configured, loading, session, mustChangePassword, signIn, signOut],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

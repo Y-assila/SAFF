@@ -19,12 +19,16 @@ select set_eq($$select proname from exposure where rolname = 'authenticated' and
   $$values ('start_queue'), ('pause_queue'), ('resume_queue'), ('close_queue'), ('reopen_queue'),
            ('call_next_customer'), ('mark_on_the_way'), ('mark_arrived'), ('start_service'), ('complete_service'),
            ('skip_ticket'), ('barber_cancel_ticket'), ('reveal_phone'), ('reissue_ticket_link'),
-           ('get_queue_stats'), ('public_get_shop')$$,
-  'authenticated can execute exactly the barber RPCs (+ public shop info)');
+           ('get_queue_stats'), ('public_get_shop'),
+           ('admin_status'), ('admin_assert'), ('admin_overview'), ('admin_list_shops'), ('admin_get_shop'),
+           ('admin_create_shop'), ('admin_update_shop'), ('admin_set_shop_active'), ('admin_set_member_role'),
+           ('admin_remove_member')$$,
+  'authenticated can execute exactly the barber RPCs, the admin console RPCs (which check admin + aal2) and public shop info');
 
 select ok((select bool_and(can) from exposure where rolname = 'service_role'
-             and proname in ('join_queue', 'customer_get_ticket', 'customer_confirm_on_the_way', 'customer_cancel_ticket', 'check_rate_limit')),
-  'the service role can execute the customer RPCs and the rate limiter');
+             and proname in ('join_queue', 'customer_get_ticket', 'customer_confirm_on_the_way', 'customer_cancel_ticket', 'check_rate_limit',
+                             'admin_lookup_user', 'admin_user_info', 'admin_add_member', 'admin_log_action')),
+  'the service role can execute the customer RPCs, the rate limiter and the admin-users helpers');
 
 select set_eq(
   $$select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace

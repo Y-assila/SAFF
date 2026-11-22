@@ -4,12 +4,14 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 import { Button, Card, ErrorState, Input, LoadingState } from '../../components/ui'
 import { AlertIcon } from '../../components/ui/icons'
 import { useAuth } from '../../features/auth/authContext'
-import { safeReturnPath } from '../../features/auth/returnPath'
+import { safeReturnPath, type AuthArea } from '../../features/auth/returnPath'
 import { useDocumentTitle } from '../../lib/useDocumentTitle'
 
-export function BarberLoginPage() {
+/** Email + password sign in. Shared by the barber area and the SAFF team console (area="admin"). */
+export function BarberLoginPage({ area = 'barber' }: { area?: AuthArea }) {
   const { t } = useTranslation()
-  useDocumentTitle(t('auth.title'))
+  const title = area === 'admin' ? t('admin.loginTitle') : t('auth.title')
+  useDocumentTitle(title)
   const { configured, loading, session, signIn } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -17,7 +19,7 @@ export function BarberLoginPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const destination = safeReturnPath((location.state as { from?: unknown } | null)?.from)
+  const destination = safeReturnPath((location.state as { from?: unknown } | null)?.from, area)
 
   if (!configured) {
     return <ErrorState title={t('auth.notConfiguredTitle')} description={t('auth.notConfiguredBody')} />
@@ -38,8 +40,8 @@ export function BarberLoginPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-12">
       <div>
-        <h1 className="text-2xl font-bold">{t('auth.title')}</h1>
-        <p className="mt-2 text-sm text-muted">{t('auth.subtitle')}</p>
+        <h1 className="text-2xl font-bold">{title}</h1>
+        <p className="mt-2 text-sm text-muted">{area === 'admin' ? t('admin.loginSubtitle') : t('auth.subtitle')}</p>
       </div>
       <Card padding="lg">
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
@@ -57,7 +59,7 @@ export function BarberLoginPage() {
           </Button>
         </form>
       </Card>
-      <p className="text-center text-sm text-muted">{t('landing.shops.access')}</p>
+      {area === 'barber' && <p className="text-center text-sm text-muted">{t('landing.shops.access')}</p>}
     </div>
   )
 }
