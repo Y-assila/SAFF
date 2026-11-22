@@ -161,6 +161,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 |---|---|---|---|
 | D-01 | Approve TD v1 in full (see B-4) | **Approved 19 Nov 2026** | — |
 | D-16 | Approve RPC-SPEC (TD §8) | **Approved 19 Nov 2026** | — |
+| D-17 | **SAFF team admin console** (`/admin`) instead of creating shops and accounts in the Supabase dashboard. Admins: listed in `platform_admins` (initially the founder only); two-factor (authenticator app) required; accounts get a **temporary password shown once**, which must be replaced at first sign in; every admin change is in an append-only audit log; admins never see customer data. | **Approved 22 Nov 2026** (§18) | — |
 | D-02 | **Permanent QR URL format** | **Decided 19 Nov 2026: `/s/<slug>`.** Slugs are immutable, enforced by a database trigger (migration `20261119230100`, pgTAP 10). | — |
 | D-03 | Phone verification in MVP (B-3) | **No** (flag off; TD issue 6) | — |
 | D-04 | Production domain | **Not decided (20 Nov 2026).** Configurable via `VITE_PUBLIC_APP_URL`; QR posters are watermarked and printing is disabled until it is a public https origin. | Before printing QR codes |
@@ -439,3 +440,37 @@ New dependency (approved 20 Nov 2026): `qrcode-generator` 2.0.4 (MIT, zero depen
 **Found while writing the deploy workflow:** in Supabase CLI 3.x, `db push` targets the *local* database unless `--remote` is given, and `functions deploy` has no `--project-ref`. A naive workflow would have reported success without touching production. The workflow uses the verified flags and prints a dry run first.
 
 **What remains is outside the code** (see DEPLOYMENT.md §3 and SECURITY-REVIEW.md "Before launch"): Supabase and Cloudflare accounts, the production domain, Meta onboarding and template approval, legal approval of the consent text and the CNDP filing, native-speaker copy review, and a staging soak test.
+
+## 18. SAFF team admin console (decision D-17, 22 Nov 2026)
+
+```
+supabase/migrations/20261122100100_platform_admin.sql
+    public.platform_admins          who is a SAFF admin (no API access at all; bootstrap by SQL, OPERATIONS.md)
+    public.admin_audit_log          append-only: no UPDATE/DELETE even for the service role
+    app.is_platform_admin()         listed AND JWT aal = 'aal2' (two-factor passed)
+    app.is_shop_member()            now also false while app_metadata.must_change_password = true, so a
+                                    temporary password opens nothing (RLS + every barber RPC) until replaced
+    admin_status, admin_assert, admin_overview, admin_list_shops, admin_get_shop, admin_create_shop,
+    admin_update_shop (name, language, address, phone; never slug or time zone), admin_set_shop_active,
+    admin_set_member_role, admin_remove_member                         → authenticated, each checks admin + aal2
+    admin_lookup_user, admin_user_info, admin_add_member, admin_log_action → service role (admin-users only)
+supabase/functions/admin-users      create_account (temporary password, shown once, never stored or logged; an
+                                    existing login is only added to the shop), reset_password, set_disabled.
+                                    Authorizes the caller with admin_assert run WITH THE CALLER'S JWT.
+                                    SAFF admins cannot be targeted.
+supabase/functions/account-password the user sets a new password; clears must_change_password in the same call
+src/features/admin/, src/pages/admin/, src/components/layout/AdminShell.tsx
+    /admin/login, /admin (overview, health, recent actions), /admin/shops, /admin/shops/new,
+    /admin/shops/:id (details, status, team, add account), /admin/shops/:id/qr (same poster as the shop)
+    RequireAdmin: not an admin → "SAFF team only"; no factor → authenticator setup (QR + key); aal1 → code
+src/pages/barber/ChangePasswordPage.tsx   /barber/password, forced while the temporary password is in use
+```
+
+Notes:
+- **Two-factor** is TOTP (any authenticator app). Supabase enables TOTP on hosted projects by default; locally it is on in `config.toml`.
+- **Disabling an account** bans the login; an already-issued session token stays valid until it expires (at most 1 hour).
+- **Changing a password** ends the account's other sessions (Supabase Auth); the app signs in again with the new password.
+- **Disabling a shop** stops new customers and new queues. A queue that is already open is closed by the nightly stale-session job.
+- **Lost authenticator:** documented recovery in OPERATIONS.md (SQL, by another person with database access).
+
+**Verified:** 33 new pgTAP assertions (268 total); 91 unit tests; Playwright `e2e/admin.spec.ts` (desktop and mobile): two-factor setup with a real TOTP code, shop creation, account creation, forced password change; a shop owner is refused; the admin-users API refuses no session, an owner and an admin without two-factor, and covers disable, enable, reset, `already_member`, `forbidden_target` and the password flag.

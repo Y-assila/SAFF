@@ -10,9 +10,12 @@ export function localStack() {
   const url = get('API_URL')
   const serviceKey = get('SERVICE_ROLE_KEY')
   const anonKey = get('ANON_KEY')
-  if (!url || !serviceKey || !anonKey) throw new Error('Local Supabase is not running (npm run db:start).')
-  if (!/^http:\/\/(127\.0\.0\.1|localhost)/.test(url)) throw new Error('E2E fixtures refuse to run against a non-local stack.')
-  return { url, serviceKey, anonKey }
+  const dbUrl = get('DB_URL')
+  if (!url || !serviceKey || !anonKey || !dbUrl) throw new Error('Local Supabase is not running (npm run db:start).')
+  if (!/^http:\/\/(127\.0\.0\.1|localhost)/.test(url) || !/@(127\.0\.0\.1|localhost):/.test(dbUrl)) {
+    throw new Error('E2E fixtures refuse to run against a non-local stack.')
+  }
+  return { url, serviceKey, anonKey, dbUrl }
 }
 
 let admin: SupabaseClient<Database> | null = null
@@ -31,6 +34,15 @@ export async function createUser(label: string) {
   const { data, error } = await adminClient().auth.admin.createUser({ email, password: PASSWORD, email_confirm: true })
   if (error) throw error
   return { id: data.user.id, email }
+}
+
+/**
+ * Makes a user a SAFF admin, as the bootstrap SQL does (docs/OPERATIONS.md). platform_admins is closed
+ * to every API role, even the service role, so this goes straight to the local database.
+ */
+export function grantPlatformAdmin(userId: string) {
+  if (!/^[0-9a-f-]{36}$/.test(userId)) throw new Error('bad user id')
+  execSync(`psql "${localStack().dbUrl}" -v ON_ERROR_STOP=1 -qc "insert into public.platform_admins (user_id) values ('${userId}')"`, { stdio: 'ignore' })
 }
 
 /** A fresh shop with an owner and a barber (service role = platform admin, as in production onboarding). */

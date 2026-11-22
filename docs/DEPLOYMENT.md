@@ -8,7 +8,7 @@ Production is **Cloudflare Pages** (frontend) plus **Supabase** (database, Auth,
 
 **Supabase**
 1. Create a project in an EU region, close to Morocco.
-2. **Auth:** disable public sign-ups (barber accounts are created by the platform admin).
+2. **Auth:** disable public sign-ups (barber accounts are created in the SAFF console, `/admin`). Check that **Multi-Factor → TOTP** is enabled (default on hosted projects): the console requires it.
 3. **Realtime:** check that public broadcast channels are allowed (open blocker B-5: re-check on hosted).
 4. **Edge Function secrets** (`supabase secrets set --project-ref <ref> KEY=value`). Use long random values (`openssl rand -base64 48`) and never reuse local ones:
 
@@ -27,7 +27,8 @@ Production is **Cloudflare Pages** (frontend) plus **Supabase** (database, Auth,
    **Never set** `SAFF_ENVIRONMENT=local`, `TURNSTILE_VERIFY_URL` or `WHATSAPP_API_BASE` outside local development.
 5. After the first deploy, run once as the service role (SQL editor):
    `select public.admin_configure_whatsapp_dispatch('https://<ref>.supabase.co/functions/v1/whatsapp-dispatch', '<DISPATCH_SECRET>');`
-6. **Backups:** enable daily backups, plus Point-in-Time Recovery for production (plan-dependent; see OPERATIONS.md).
+6. **First SAFF admin:** create your login (Authentication → Users → Add user, auto-confirm), then add it to `platform_admins` (OPERATIONS.md, "SAFF team console"). Sign in at `/admin/login` and link your authenticator app.
+7. **Backups:** enable daily backups, plus Point-in-Time Recovery for production (plan-dependent; see OPERATIONS.md).
 
 **Cloudflare**
 1. Create a Pages project (direct upload). Add the custom domain once decided (D-04).

@@ -4,5 +4,6 @@ export { buttonClasses, type ButtonSize, type ButtonStyleOptions, type ButtonVar
 export { Card, CardDescription, CardTitle, type CardProps } from './Card'
 export { Dialog, type DialogProps } from './Dialog'
 export { Input, type InputProps } from './Input'
+export { Select, type SelectProps } from './Select'
 export { Spinner } from './Spinner'
 export { EmptyState, ErrorState, LoadingState } from './states'

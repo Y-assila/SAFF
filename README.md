@@ -26,6 +26,7 @@ You need **Git**, **Node.js 22+** and **Docker Desktop** (running).
 | Customer (the QR page) | http://localhost:5173/s/demo-salon : join with any 06/07 mobile number |
 | Barber | http://localhost:5173/barber/login : `barber@saff.local` / `demo-password-123` |
 | Owner (can edit settings) | `owner@saff.local` / `demo-password-123` |
+| SAFF team console | http://localhost:5173/admin/login : make an account admin first (docs/OPERATIONS.md, "SAFF team console"), then link an authenticator app |
 
 Tip: open the barber dashboard and a customer ticket side by side (one normal window, one private window, or your phone on the same network) to watch live updates. Stop everything with `npm run db:stop`.
 

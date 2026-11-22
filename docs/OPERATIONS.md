@@ -2,6 +2,40 @@
 
 *v0.1 · 20 Nov 2026*
 
+## SAFF team console (`/admin`)
+
+Shops and barber accounts are created in the console, not in the Supabase dashboard.
+
+**Make someone a SAFF admin** (once per person; today: the founder only). They need a normal login first: create it in Supabase → Authentication → Users → *Add user* (auto-confirm), then run in the SQL editor:
+
+```sql
+insert into public.platform_admins (user_id)
+select id from auth.users where email = 'founder@example.com';
+```
+
+At their first visit to `/admin/login` they link an authenticator app (two-factor is required for every admin action).
+
+**Remove an admin:** `delete from public.platform_admins where user_id = (select id from auth.users where email = '…');`
+
+**Lost authenticator (phone lost or reset).** Another person with database access verifies the admin's identity, then removes the factor so it can be set up again at the next sign in:
+
+```sql
+delete from auth.mfa_factors where user_id = (select id from auth.users where email = '…');
+```
+
+**Audit log** (who did what, newest first; also on the console overview):
+
+```sql
+select l.created_at, a.email as admin, l.action, s.name as shop, t.email as target, l.details
+from public.admin_audit_log l
+left join auth.users a on a.id = l.actor_id
+left join auth.users t on t.id = l.target_user_id
+left join public.shops s on s.id = l.shop_id
+order by l.created_at desc limit 50;
+```
+
+**Barber forgot their password:** console → shop → Team → *Reset password*. Give the new temporary password to the barber in person or by phone; they choose their own at the next sign in.
+
 ## Health check
 
 Run as the service role (Supabase SQL editor, or `rpc('ops_health')` with the service key):

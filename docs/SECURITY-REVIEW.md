@@ -7,13 +7,14 @@
 | Area | Control | Verified by |
 |---|---|---|
 | Tenant isolation | RLS on every table; members read only their shop; anon reads nothing | pgTAP 04 (as real roles), REST checks (M1) · CI |
-| Least privilege | Exact function-exposure table (anon: 1 function; authenticated: 16; customer RPCs and jobs: service role only); every SECURITY DEFINER function pins `search_path` | pgTAP 08, 09, 11, 12 · CI |
+| Least privilege | Exact function-exposure table (anon: 1 function; authenticated: 16 barber + 10 console; customer RPCs and jobs: service role only); every SECURITY DEFINER function pins `search_path` | pgTAP 08, 09, 11, 12 · CI |
 | Phone privacy | Phone column not granted to barbers; reveal is audited, scoped to 24 h, limited to 30/h; never in Realtime, ticket view, audit metadata or logs; redacted from stored WhatsApp errors | pgTAP 04, 06, 07, 11; E2E · CI |
 | State integrity | Transitions as data, plus trigger, plus actor checks; partial unique indexes; lock-first RPCs | pgTAP 02, 03, 05, 06; 14 concurrency checks · CI |
 | Ticket links | HMAC-SHA256 tokens, constant-time verify, revocable (`token_version`), token in fragment, removed from the address bar, never in query strings; generic 404 for every failure, rate-limited | Unit (token), E2E api-security · CI |
 | Bot / abuse | Turnstile (fails closed); per-IP/phone/shop limits keyed by HMAC; client IP from the trusted proxy hop (forged XFF/CF headers can't bypass) | E2E api-security · CI |
 | Input validation | Edge validation plus database re-validation (names, E.164 mobile only, consent, lengths) | pgTAP 07, E2E · CI |
 | Web | CSP (`'self'` plus Supabase and Turnstile only), `no-referrer`, HSTS, `nosniff`, frame-ancestors none, `noindex` + `no-store` on `/t`; no third-party scripts on the ticket page | `public/_headers`, E2E (ticket page scripts) |
+| SAFF console | Admin = listed in `platform_admins` AND two-factor (aal2), re-checked by every admin RPC and by `admin-users` (via the caller's own JWT); admins never see customer names or phones; append-only audit log; temporary passwords shown once, never stored or logged, and they open no shop data until replaced (enforced in `is_shop_member`); SAFF admins cannot be modified through the console | pgTAP 08, 13; E2E admin · CI |
 | Auth | Public sign-up disabled; generic login error; safe post-login redirect; session detection from URL off | Unit, E2E, Auth API check (M1) |
 | WhatsApp | Official Cloud API only; UTILITY templates only; dispatcher shared secret (constant-time); webhook HMAC signature; secrets in Vault/function secrets; failure never affects tickets | Unit, pgTAP 11, E2E whatsapp · CI |
 | Test doubles | Turnstile and Meta URL overrides accepted only when `SAFF_ENVIRONMENT=local`; the dev gallery is not in production builds | Code review, build check (M0) |
@@ -38,4 +39,5 @@
 
 - An accidental *Start service* can't be undone in the MVP (TD §1 note a; v1.1 candidate).
 - Phone ownership isn't verified in the MVP (TD issue 6, approved). Mitigations: Turnstile, rate limits, per-shop cap, utility-only templates.
+- Disabling an account blocks new sign ins; a session token already issued stays valid until it expires (at most 1 hour).
 - Ticket tokens use one secret version (`v1`). Rotation needs a small code change (OPERATIONS.md).

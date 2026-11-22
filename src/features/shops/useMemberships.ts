@@ -12,11 +12,12 @@ export interface Membership {
 
 /** The signed-in user's shops. RLS returns only their own membership rows. */
 export function useMemberships() {
-  const { session } = useAuth()
+  const { session, mustChangePassword } = useAuth()
   const userId = session?.user.id
   return useQuery({
     queryKey: ['memberships', userId],
-    enabled: Boolean(userId),
+    // With a temporary password the database returns no shop: do not cache that empty answer.
+    enabled: Boolean(userId) && !mustChangePassword,
     queryFn: async (): Promise<Membership[]> => {
       const { data, error } = await getSupabase()
         .from('shop_members')

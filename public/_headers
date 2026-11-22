@@ -15,6 +15,14 @@
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store
 
+# SAFF team console: never indexed or cached.
+/admin
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
 # Fingerprinted build assets.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

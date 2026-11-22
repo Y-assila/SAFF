@@ -8,6 +8,8 @@ export interface AuthState {
   configured: boolean
   loading: boolean
   session: Session | null
+  /** The SAFF team gave this account a temporary password: it must be replaced before anything else. */
+  mustChangePassword: boolean
   signIn: (email: string, password: string) => Promise<SignInResult>
   signOut: () => Promise<void>
 }

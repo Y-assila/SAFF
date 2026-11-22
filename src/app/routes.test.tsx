@@ -44,6 +44,11 @@ describe('routing', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in is not available' })).toBeInTheDocument()
   })
 
+  it('/admin (SAFF team console) is also protected', async () => {
+    renderAt('/admin/shops')
+    expect(await screen.findByRole('heading', { name: 'Sign in is not available' })).toBeInTheDocument()
+  })
+
   it('renders 404 for unknown paths', () => {
     renderAt('/does-not-exist')
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
