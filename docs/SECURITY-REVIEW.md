@@ -22,6 +22,14 @@
 | Dependencies | Production `npm audit`: 0 vulnerabilities (20 Nov 2026); Edge Functions import nothing at runtime (vendored, pinned) | `npm audit --omit=dev` |
 | Secrets in repo | `.env*` ignored (only `.env.example` files with public or dev-only values); service key never in `VITE_*`; the bundle checked for service-role strings (M3) | `.gitignore`, build check |
 
+## Supabase Security Advisor (staging, 22 Nov 2026)
+
+| Finding | Decision |
+|---|---|
+| `extension_in_public` (pg_net) | **Fixed**: re-created in schema `extensions` (migration `20261122200100`; pgTAP 14) |
+| `anon/authenticated_security_definer_function_executable` (29 functions) | **By design** (RPC-SPEC §2). They are the API: each one checks the caller inside (`is_shop_member`, `is_platform_admin` + aal2, ticket token). The exact list callable by each role is pinned by pgTAP 08, so a new one cannot appear unnoticed. `public_get_shop` returns only a shop's public name and queue state |
+| `auth_leaked_password_protection` | Turn on in Auth settings (HaveIBeenPwned check; needs a paid plan). Set the minimum password length to 10 there too, to match the app |
+
 ## Before launch (open)
 
 - [ ] **Proxy chain on hosted Supabase:** set `TRUSTED_PROXY_HOPS` / `TRUST_CF_CONNECTING_IP` so per-IP limits see real client IPs (test from two networks).
@@ -33,6 +41,7 @@
 - [ ] **Meta:** templates approved; webhook verified; token is a system-user permanent token with minimal permissions.
 - [ ] **GitHub:** the `production` environment requires reviewers; branch protection on `master` requires CI.
 - [ ] **External penetration test** or independent review of the Edge Functions and RLS (recommended before scaling past pilot shops).
+- [ ] **Auth settings:** leaked password protection on; minimum password length 10.
 - [ ] **Monitoring** calling `ops_health` with alerting (OPERATIONS.md).
 
 ## Accepted risks (documented)
