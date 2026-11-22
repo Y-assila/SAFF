@@ -73,8 +73,10 @@ jobs:
       - name: Apply database migrations (forward-only)
         run: npx supabase db push --remote --password "$SUPABASE_DB_PASSWORD" --yes
 
+      # Every SAFF function authenticates itself (ticket HMAC, Turnstile, dispatch secret, Meta signature),
+      # so the gateway's JWT check is disabled explicitly instead of relying on config.toml being applied.
       - name: Deploy Edge Functions
-        run: npx supabase functions deploy --use-api --yes
+        run: npx supabase functions deploy --use-api --no-verify-jwt --yes
 
       - name: Build frontend
         run: npm run build

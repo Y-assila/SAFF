@@ -72,6 +72,15 @@ describe('TicketPage', () => {
     expect(await screen.findByRole('heading', { name: 'This ticket link is not valid' })).toBeInTheDocument()
   })
 
+  it('a server or network problem is not reported as an invalid link', { timeout: 10_000 }, async () => {
+    getTicket.mockImplementation(() => Promise.reject(new CustomerApiError('internal', 500)))
+    renderPage()
+    // The page retries a server error twice (about 3 s) before showing it.
+    expect(await screen.findByRole('alert', {}, { timeout: 6_000 })).toHaveTextContent('We couldn’t load your ticket right now')
+    expect(screen.queryByText('This ticket link is not valid')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
   it('opens in the language the customer joined with (D-06)', async () => {
     getTicket.mockResolvedValue(view({ locale: 'ar' }))
     renderPage()

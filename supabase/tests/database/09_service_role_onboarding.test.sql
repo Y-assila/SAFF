@@ -1,6 +1,6 @@
 begin;
 \ir _helpers.psql
-select plan(4);
+select plan(5);
 
 -- Regression (found by E2E in M3): onboarding runs as the service role, not as postgres.
 set local role service_role;
@@ -15,6 +15,11 @@ reset role;
 select ok(not has_function_privilege('authenticated', 'app.is_valid_timezone(text)', 'execute')
           and not has_function_privilege('anon', 'app.is_valid_timezone(text)', 'execute'),
   'clients still cannot execute the helper directly');
+
+select ok(has_table_privilege('service_role', 'public.tickets', 'select')
+          and has_table_privilege('service_role', 'public.shop_settings', 'select')
+          and has_table_privilege('service_role', 'public.shops', 'insert'),
+  'the service role has explicit table privileges (Edge Functions read tables directly; hosted projects grant none by default)');
 
 select * from finish();
 rollback;

@@ -269,6 +269,8 @@ const en = {
     cancelBody: 'You will lose your place in the queue.',
     keep: 'Keep my ticket',
     actionFailed: 'This is no longer possible. Your ticket has been refreshed.',
+    loadErrorTitle: 'We couldn’t load your ticket right now',
+    loadErrorBody: 'Your place in the queue is safe. Check your connection and try again.',
     state: {
       waiting: 'You are in the queue',
       getting_ready: 'It’s almost your turn. Please come to the shop now.',
