@@ -1,8 +1,8 @@
 import { isValidPhoneNumber } from 'libphonenumber-js/min'
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, Input, buttonClasses } from '../../components/ui'
-import { AlertIcon } from '../../components/ui/icons'
+import { Button, buttonClasses } from '../../components/ui'
+import { AlertIcon, ArrowForwardIcon } from '../../components/ui/icons'
 import { CustomerApiError, joinQueue, type JoinResult } from '../../features/customer/api'
 import { CONSENT_TEXT_VERSION } from '../../features/customer/consent'
 import { loadTicketToken, saveTicketToken } from '../../features/customer/ticketStorage'
@@ -20,6 +20,7 @@ export function JoinForm({ slug, shopName, onQueueChanged }: { slug: string; sho
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [consent, setConsent] = useState(false) // explicit opt-in: never pre-checked
+  const [details, setDetails] = useState(false)
   const [captcha, setCaptcha] = useState<string | null>(null)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -79,44 +80,91 @@ export function JoinForm({ slug, shopName, onQueueChanged }: { slug: string; sho
   if (existing) {
     const hasTicketHere = loadTicketToken() !== null
     return (
-      <Card padding="lg" role="status" className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t('join.existingTitle')}</h2>
-        <p className="text-sm text-muted">{existing.whatsapp ? t('join.existingWhatsapp') : t('join.existingNoWhatsapp')}</p>
+      <section role="status" className="mx-5 mt-8 flex flex-col gap-3 rounded-3xl bg-surface p-6 animate-rise">
+        <h2 className="text-lg font-bold">{t('join.existingTitle')}</h2>
+        <p className="text-sm leading-relaxed text-muted">{existing.whatsapp ? t('join.existingWhatsapp') : t('join.existingNoWhatsapp')}</p>
         {hasTicketHere && <a href="/t" className={buttonClasses({ variant: 'secondary', className: 'self-start' })}>{t('join.openMyTicket')}</a>}
-      </Card>
+      </section>
     )
   }
 
   return (
-    <Card padding="lg">
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        <h2 className="text-lg font-semibold">{t('shopPage.joinTitle')}</h2>
-        <Input label={t('join.name')} hint={t('join.nameHint')} name="name" autoComplete="given-name" maxLength={60} required
-               value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
-        <Input label={t('join.phone')} hint={t('join.phoneHint')} name="phone" type="tel" inputMode="tel" autoComplete="tel"
-               dir="ltr" placeholder={t('join.phonePlaceholder')} maxLength={32} required
-               value={phone} onChange={(e) => setPhone(e.target.value)} error={errors.phone} />
-        <div className="flex flex-col gap-1.5">
-          <label className="flex items-start gap-3">
-            <input type="checkbox" name="consent" className="mt-1 size-4 shrink-0 accent-signal" checked={consent}
-                   aria-invalid={errors.consent ? true : undefined} aria-describedby={errors.consent ? 'consent-error' : undefined}
-                   onChange={(e) => setConsent(e.target.checked)} />
-            <span className="text-sm leading-relaxed text-muted">{t('join.consent', { shop: shopName })}</span>
-          </label>
-          {errors.consent && (
-            <p id="consent-error" className="flex items-center gap-1.5 text-sm text-danger">
-              <AlertIcon className="size-4 shrink-0" /> <span>{errors.consent}</span>
-            </p>
+    <form onSubmit={onSubmit} noValidate aria-label={t('shopPage.joinTitle')} className="flex flex-1 flex-col">
+      <div className="flex flex-col gap-3.5 px-5 pt-8">
+        <FieldBox label={t('join.name')} error={errors.name}>
+          {(id, describedBy) => (
+            <input id={id} name="name" autoComplete="given-name" maxLength={60} required dir="auto"
+              placeholder={t('join.nameHint')} aria-invalid={errors.name ? true : undefined} aria-describedby={describedBy}
+              value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
           )}
+        </FieldBox>
+        <FieldBox label={t('join.phone')} error={errors.phone} hint={t('join.phoneHint')}>
+          {(id, describedBy) => (
+            <input id={id} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" maxLength={32} required
+              placeholder={t('join.phonePlaceholder')} aria-invalid={errors.phone ? true : undefined} aria-describedby={describedBy}
+              value={phone} onChange={(e) => setPhone(e.target.value)} className={`${inputClass} tabular-nums`} />
+          )}
+        </FieldBox>
+
+        <div className="flex items-start gap-3 px-0.5 pt-2">
+          <input id="consent" type="checkbox" name="consent" className="mt-0.5 size-[1.375rem] shrink-0 accent-signal" checked={consent}
+                 aria-invalid={errors.consent ? true : undefined} aria-describedby={errors.consent ? 'consent-error' : undefined}
+                 onChange={(e) => setConsent(e.target.checked)} />
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="consent" className="text-sm leading-relaxed text-soft/90">{t('join.consentShort')}</label>
+            <button type="button" aria-expanded={details} aria-controls="consent-details" onClick={() => setDetails((d) => !d)}
+              className="press self-start text-[0.8125rem] font-semibold text-muted underline underline-offset-4 hover:text-soft">
+              {details ? t('join.consentHide') : t('join.consentShow')}
+            </button>
+            {details && <p id="consent-details" className="text-[0.8125rem] leading-relaxed text-muted animate-rise">{t('join.consent', { shop: shopName })}</p>}
+            {errors.consent && (
+              <p id="consent-error" className="flex items-center gap-1.5 text-sm text-danger">
+                <AlertIcon className="size-4 shrink-0" /> <span>{errors.consent}</span>
+              </p>
+            )}
+          </div>
         </div>
         <TurnstileWidget ref={turnstile} onToken={setCaptcha} />
+      </div>
+
+      {/* The action stays under the thumb on every phone. */}
+      <div className="sticky bottom-0 mt-auto flex flex-col gap-2.5 border-t border-line/60 bg-midnight/95 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] backdrop-blur">
         {formError && (
           <p role="alert" className="flex items-center gap-2 text-sm text-danger">
             <AlertIcon className="size-4 shrink-0" /> <span>{formError}</span>
           </p>
         )}
-        <Button type="submit" size="lg" fullWidth loading={submitting}>{t('join.submit')}</Button>
-      </form>
-    </Card>
+        <Button type="submit" size="lg" fullWidth loading={submitting} className="h-14 rounded-2xl text-lg font-bold">
+          {t('join.submit')}
+          <ArrowForwardIcon className="size-5" />
+        </Button>
+        <p className="text-center text-[0.8125rem] text-graphite">{t('join.footnote')}</p>
+      </div>
+    </form>
+  )
+}
+
+const inputClass = 'h-7 w-full bg-transparent p-0 text-[1.0625rem] text-soft placeholder:text-graphite focus:outline-none'
+
+/** Label and input in one tappable box; the border turns lime while typing. */
+function FieldBox({ label, hint, error, children }: {
+  label: string; hint?: string; error?: string; children: (id: string, describedBy: string | undefined) => ReactNode
+}) {
+  const id = useId()
+  const hintId = hint ? `${id}-hint` : undefined
+  const errorId = error ? `${id}-error` : undefined
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className={`flex flex-col gap-1 rounded-2xl border bg-surface px-4 py-3 transition-colors focus-within:border-signal ${error ? 'border-danger' : 'border-line'}`}>
+        <label htmlFor={id} className="text-xs font-semibold text-muted">{label}</label>
+        {children(id, [hintId, errorId].filter(Boolean).join(' ') || undefined)}
+      </div>
+      {error && (
+        <p id={errorId} className="flex items-center gap-1.5 px-1 text-sm text-danger">
+          <AlertIcon className="size-4 shrink-0" /> <span>{error}</span>
+        </p>
+      )}
+      {hint && !error && <p id={hintId} className="px-1 text-[0.8125rem] text-graphite">{hint}</p>}
+    </div>
   )
 }

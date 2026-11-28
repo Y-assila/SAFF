@@ -22,6 +22,7 @@ export interface QueueTicket {
   ticket_number: number
   customer_name: string | null
   status: TicketStatus
+  joined_at?: string | null
   called_at: string | null
   service_started_at: string | null
 }

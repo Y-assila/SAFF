@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Button, ErrorState, LoadingState } from '../../../components/ui'
+import { Button, ErrorState, LoadingState } from '../../../components/ui'
 import { AlertIcon, CloseIcon } from '../../../components/ui/icons'
 import { errorMessageKey } from '../errors'
 import { CALLED_STATUSES, formatTicketNumber, type QueueSession, type QueueTicket, type SkipReason } from '../types'
 import { useActiveTickets, useGracePeriod, useNow, useQueueAction, useQueueRealtime, useQueueStats } from '../useQueue'
 import { ConfirmDialog, PhoneDialog, SkipDialog, TicketMenuDialog, type TicketMenuAction } from './QueueDialogs'
-import { CalledCard, InServiceCard, WaitingList } from './TicketCards'
+import { CalledCard, CustomerName, InServiceCard, WaitingList } from './TicketCards'
 
 type DialogState =
   | { kind: 'none' }
@@ -50,65 +50,83 @@ export function LiveQueue({ shopId, session }: { shopId: string; session: QueueS
   const estimate = stats.data?.next_join_estimate
   const dialogTicket = dialog.kind !== 'none' && dialog.kind !== 'close' ? dialog.ticket : null
 
+  const nextUp = waiting[0]
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold">{t('queue.title')}</h1>
-        <Badge tone={paused ? 'outline' : 'neutral'} dot>{t(`queue.status.${session.status}`)}</Badge>
-        <div className="ms-auto flex gap-2">
-          {paused
-            ? <Button variant="secondary" size="sm" onClick={() => run('resume_queue', { p_session_id: sid })}>{t('queue.resume')}</Button>
-            : <Button variant="secondary" size="sm" onClick={() => run('pause_queue', { p_session_id: sid })}>{t('queue.pause')}</Button>}
-          <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: 'close' })}>{t('queue.close')}</Button>
+    <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="flex min-w-0 flex-col gap-7">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-extrabold tracking-tight">{t('queue.title')}</h1>
+          <span className={`inline-flex h-8 items-center gap-2 rounded-full px-3 text-xs font-bold ${paused ? 'bg-surface text-muted' : 'bg-signal/12 text-signal'}`}>
+            <span aria-hidden="true" className={`size-2 rounded-full ${paused ? 'bg-graphite' : 'animate-live bg-signal'}`} />
+            {t(`queue.status.${session.status}`)}
+          </span>
+          <div className="ms-auto flex gap-2">
+            {paused
+              ? <Button variant="secondary" size="sm" onClick={() => run('resume_queue', { p_session_id: sid })}>{t('queue.resume')}</Button>
+              : <Button variant="secondary" size="sm" onClick={() => run('pause_queue', { p_session_id: sid })}>{t('queue.pause')}</Button>}
+            <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: 'close' })}>{t('queue.close')}</Button>
+          </div>
         </div>
-      </div>
 
-      <p className="text-sm text-muted" aria-live="polite">
-        {t('queue.waitingCount', { count: waiting.length })}
-        {' · '}
-        {estimate?.available ? t('queue.estimate', { minutes: estimate.minutes }) : t('queue.estimateUnavailable')}
-      </p>
+        {paused && <p className="rounded-2xl border border-line px-4 py-3 text-sm">{t('queue.pausedNotice')}</p>}
 
-      {paused && <p className="rounded-control border border-line bg-surface px-4 py-3 text-sm">{t('queue.pausedNotice')}</p>}
-
-      {error && (
-        <div role="alert" className="flex items-start gap-3 rounded-control border border-danger/60 px-4 py-3 text-sm">
-          <AlertIcon className="mt-0.5 size-4 shrink-0 text-danger" />
-          <span className="flex-1">{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label={t('common.close')} className="text-muted hover:text-soft">
-            <CloseIcon className="size-4" />
-          </button>
-        </div>
-      )}
-
-      <Button size="lg" fullWidth className="h-16 text-lg" loading={action.isPending && action.variables?.name === 'call_next_customer'}
-              disabled={Boolean(called) || waiting.length === 0}
-              onClick={() => run('call_next_customer', { p_session_id: sid })}>
-        {t('queue.callNext')}
-        {waiting[0] && (
-          <>
-            <span aria-hidden="true" className="opacity-60">·</span>
-            <span dir="ltr" className="tabular-nums opacity-80">{formatTicketNumber(waiting[0].ticket_number)}</span>
-          </>
+        {error && (
+          <div role="alert" className="flex items-start gap-3 rounded-2xl border border-danger/60 px-4 py-3 text-sm">
+            <AlertIcon className="mt-0.5 size-4 shrink-0 text-danger" />
+            <span className="flex-1">{error}</span>
+            <button type="button" onClick={() => setError(null)} aria-label={t('common.close')} className="press -m-2 flex size-9 items-center justify-center text-muted hover:text-soft">
+              <CloseIcon className="size-4" />
+            </button>
+          </div>
         )}
-      </Button>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <InServiceCard ticket={inService}
-          busy={action.isPending && action.variables?.name === 'complete_service'}
-          onComplete={() => inService && run('complete_service', { p_session_id: sid, p_ticket_id: inService.id })}
-          onMore={() => inService && setDialog({ kind: 'menu', ticket: inService })} />
-        <CalledCard ticket={called} now={now} graceMinutes={grace.data} serviceBusy={Boolean(inService)}
-          busy={action.isPending && ['mark_arrived', 'start_service'].includes(action.variables?.name ?? '')}
-          onArrived={() => called && run('mark_arrived', { p_session_id: sid, p_ticket_id: called.id })}
-          onStart={() => called && run('start_service', { p_session_id: sid, p_ticket_id: called.id })}
-          onStartNow={() => called && setDialog({ kind: 'startNow', ticket: called })}
-          onOnTheWay={() => called && run('mark_on_the_way', { p_session_id: sid, p_ticket_id: called.id })}
-          onSkip={() => called && setDialog({ kind: 'skip', ticket: called })}
-          onMore={() => called && setDialog({ kind: 'menu', ticket: called })} />
+        {inService ? (
+          <InServiceCard ticket={inService} now={now}
+            busy={action.isPending && action.variables?.name === 'complete_service'}
+            onComplete={() => run('complete_service', { p_session_id: sid, p_ticket_id: inService.id })}
+            onMore={() => setDialog({ kind: 'menu', ticket: inService })} />
+        ) : (
+          <div className="flex flex-col gap-1 animate-rise">
+            <p className="text-sm text-muted">{t('queue.chairFree')}</p>
+            <p className="text-4xl font-extrabold tracking-tighter sm:text-5xl">
+              {called ? t('queue.waitingForCalled') : nextUp ? t('queue.readyForNext') : t('queue.allCaughtUp')}
+            </p>
+          </div>
+        )}
+
+        {called && (
+          <CalledCard ticket={called} now={now} graceMinutes={grace.data} serviceBusy={Boolean(inService)}
+            busy={action.isPending && ['mark_arrived', 'start_service'].includes(action.variables?.name ?? '')}
+            onArrived={() => run('mark_arrived', { p_session_id: sid, p_ticket_id: called.id })}
+            onStart={() => run('start_service', { p_session_id: sid, p_ticket_id: called.id })}
+            onStartNow={() => setDialog({ kind: 'startNow', ticket: called })}
+            onOnTheWay={() => run('mark_on_the_way', { p_session_id: sid, p_ticket_id: called.id })}
+            onSkip={() => setDialog({ kind: 'skip', ticket: called })}
+            onMore={() => setDialog({ kind: 'menu', ticket: called })} />
+        )}
+
+        {/* One customer can be called at a time, so CALL NEXT only appears when it can be used. */}
+        {!called && nextUp && (
+          <Button size="lg" fullWidth loading={action.isPending && action.variables?.name === 'call_next_customer'}
+            onClick={() => run('call_next_customer', { p_session_id: sid })}
+            className="h-20 rounded-3xl text-xl font-extrabold">
+            {t('queue.callNext')}
+            <span aria-hidden="true" className="opacity-50">·</span>
+            <span dir="ltr" className="tabular-nums opacity-70">{formatTicketNumber(nextUp.ticket_number)}</span>
+            <CustomerName name={nextUp.customer_name} className="max-w-40 font-semibold opacity-70" />
+          </Button>
+        )}
+
+        <p className="border-t border-line pt-5 text-sm text-muted" aria-live="polite">
+          {t('queue.waitingCount', { count: waiting.length })}
+          {' · '}
+          {estimate?.available ? t('queue.estimate', { minutes: estimate.minutes }) : t('queue.estimateUnavailable')}
+        </p>
       </div>
 
-      <WaitingList tickets={waiting} onMore={(ticket) => setDialog({ kind: 'menu', ticket })} />
+      <aside className="lg:border-s lg:border-line lg:ps-8">
+        <WaitingList tickets={waiting} now={now} onMore={(ticket) => setDialog({ kind: 'menu', ticket })} />
+      </aside>
 
       {/* ── Dialogs ── */}
       <TicketMenuDialog ticket={dialog.kind === 'menu' ? dialog.ticket : null}

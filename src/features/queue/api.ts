@@ -32,7 +32,7 @@ export async function fetchLatestSession(shopId: string): Promise<QueueSession |
 export async function fetchActiveTickets(sessionId: string): Promise<QueueTicket[]> {
   const { data, error } = await getSupabase()
     .from('tickets')
-    .select('id, ticket_number, customer_name, status, called_at, service_started_at')
+    .select('id, ticket_number, customer_name, status, joined_at, called_at, service_started_at')
     .eq('queue_session_id', sessionId)
     .in('status', [...ACTIVE_STATUSES])
     .order('ticket_number', { ascending: true })

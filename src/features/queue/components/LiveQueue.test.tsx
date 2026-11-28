@@ -30,7 +30,7 @@ describe('LiveQueue', () => {
     tickets = [ticket(1, 'in_service'), ticket(2, 'waiting'), ticket(3, 'waiting')]
     render(<LiveQueue shopId="shop-1" session={session} />)
     expect(within(screen.getByRole('region', { name: 'In service' })).getByText('001')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Called' })).getByText('No one called')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Called' })).toBeNull() // nobody called: no empty box
     expect(within(screen.getByRole('region', { name: 'Waiting' })).getAllByRole('listitem')).toHaveLength(2)
     expect(screen.getByRole('button', { name: /Call next/ })).toHaveTextContent('002')
     expect(screen.getByText(/2 waiting · A new customer waits about 50 min/)).toBeInTheDocument()
@@ -42,10 +42,10 @@ describe('LiveQueue', () => {
     expect(container.textContent).not.toMatch(/\+?\d{9,}/)
   })
 
-  it('disables CALL NEXT while someone is called', () => {
+  it('hides CALL NEXT while someone is called (one called customer at a time)', () => {
     tickets = [ticket(1, 'getting_ready', { called_at: '2026-11-19T10:12:00Z' }), ticket(2, 'waiting')]
     render(<LiveQueue shopId="shop-1" session={session} />)
-    expect(screen.getByRole('button', { name: /Call next/ })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /Call next/ })).toBeNull()
     expect(screen.getByText(/Called 3 min ago · 7 min left to arrive/)).toBeInTheDocument()
   })
 

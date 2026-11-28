@@ -39,7 +39,7 @@ describe('TicketPage', () => {
     getTicket.mockResolvedValue(view())
     const { container } = renderPage()
     expect(await screen.findByText('014')).toBeInTheDocument()
-    expect(screen.getByText('People ahead of you: 3')).toBeInTheDocument()
+    expect(screen.getByText('people ahead of you').closest('p')).toHaveTextContent('3people ahead of you')
     expect(screen.getByText('Estimated wait: about 45 min')).toBeInTheDocument()
     expect(screen.getByText('011')).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/\+?\d{9,}/)
@@ -51,18 +51,19 @@ describe('TicketPage', () => {
     getTicket.mockResolvedValue(view({ status: 'getting_ready', called_at: new Date(Date.now() + 20_000).toISOString() }))
     ticketAction.mockResolvedValue({ result: 'on_the_way' })
     renderPage()
-    await userEvent.click(await screen.findByRole('button', { name: 'I’m on my way' }))
+    expect(await screen.findByRole('heading', { name: 'It’s your turn' })).toBeInTheDocument()
+    expect(screen.getByText('min left to arrive').closest('p')).toHaveTextContent('10min left to arrive')
+    await userEvent.click(screen.getByRole('button', { name: 'I’m on my way' }))
     expect(ticketAction).toHaveBeenCalledWith(TOKEN, 'on_the_way')
-    expect(screen.getByText('Please arrive within 10 min')).toBeInTheDocument()
   })
 
-  it('cancelling needs confirmation', async () => {
+  it('leaving the queue needs confirmation', async () => {
     getTicket.mockResolvedValue(view())
     ticketAction.mockResolvedValue({ result: 'cancelled' })
     renderPage()
-    await userEvent.click(await screen.findByRole('button', { name: 'Cancel my ticket' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Leave the queue' }))
     expect(ticketAction).not.toHaveBeenCalled()
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel my ticket' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, leave' }))
     expect(ticketAction).toHaveBeenCalledWith(TOKEN, 'cancel')
   })
 
@@ -84,7 +85,7 @@ describe('TicketPage', () => {
   it('opens in the language the customer joined with (D-06)', async () => {
     getTicket.mockResolvedValue(view({ locale: 'ar' }))
     renderPage()
-    expect(await screen.findByText('أنت في الطابور')).toBeInTheDocument()
+    expect(await screen.findByText('أشخاص قبلك')).toBeInTheDocument()
     expect(document.documentElement.dir).toBe('rtl')
   })
 })

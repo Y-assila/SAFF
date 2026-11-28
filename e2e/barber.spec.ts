@@ -50,7 +50,7 @@ test('a full service cycle, with live updates and no reloads', async ({ page }) 
   await page.getByRole('button', { name: /Call next/ }).click()
   const called = page.getByRole('region', { name: 'Called' })
   await expect(called).toContainText('001')
-  await expect(page.getByRole('button', { name: /Call next/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /Call next/ })).toBeHidden() // one called customer at a time
   await called.getByRole('button', { name: 'Mark arrived' }).click()
   await called.getByRole('button', { name: 'Start service' }).click()
   const inService = page.getByRole('region', { name: 'In service' })
@@ -60,7 +60,8 @@ test('a full service cycle, with live updates and no reloads', async ({ page }) 
   await page.getByRole('button', { name: /Call next/ }).click()
   await expect(called).toContainText('002')
   await inService.getByRole('button', { name: 'Complete service' }).click()
-  await expect(inService).toContainText('No one in service')
+  await expect(inService).toHaveCount(0) // the chair is free: no empty box
+  await expect(page.getByText('The chair is free')).toBeVisible()
 
   // Phone reveal is explicit and audited.
   await called.getByRole('button', { name: 'More actions for ticket 002' }).click()
@@ -116,13 +117,14 @@ test('settings: owners edit, barbers read only', async ({ page }) => {
 })
 
 test('the dashboard works in Arabic (RTL)', async ({ page }) => {
-  const { barber } = await createShopWithStaff()
+  const { shop, barber } = await createShopWithStaff()
   await signIn(page, barber.email)
   await openQueue(page)
+  await joinQueue(shop.slug, 'Amine', '+212600000301')
   await page.getByRole('group', { name: 'Language' }).first().getByRole('button', { name: 'العربية' }).click()
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
   await expect(page.getByRole('heading', { name: 'طابور اليوم' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'نادِ التالي' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /نادِ التالي/ })).toBeVisible({ timeout: 25_000 })
 })
 
 test('the shop QR poster encodes /s/<slug> and cannot be printed before the domain is set (D-04)', async ({ page }) => {
