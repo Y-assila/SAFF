@@ -43,6 +43,10 @@ describe('JoinForm', () => {
   it('consent is explicit: unchecked by default, required, and names the shop', async () => {
     await fill({ consent: false })
     expect(screen.getByRole('checkbox')).not.toBeChecked()
+    // Layered notice: a short label, and the full text (naming the shop) one tap away.
+    expect(screen.getByRole('checkbox', { name: /WhatsApp updates about this ticket only/ })).toBeInTheDocument()
+    expect(screen.queryByText(/I agree that Salon Amine and SAFF/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'What we keep, and for how long' }))
     expect(screen.getByText(/I agree that Salon Amine and SAFF/)).toBeInTheDocument()
     expect(screen.getByText('Please agree to continue.')).toBeInTheDocument()
     expect(joinQueue).not.toHaveBeenCalled()
@@ -59,7 +63,7 @@ describe('JoinForm', () => {
     await fill()
     expect(joinQueue).toHaveBeenCalledWith(expect.objectContaining({
       shop_slug: 'salon-amine', name: 'Amine', phone: '0612345678', consent: true,
-      consent_text_version: 'draft-2026-11', locale: 'en', turnstile_token: 'XXXX.DUMMY.TOKEN.XXXX',
+      consent_text_version: 'draft-2026-11b', locale: 'en', turnstile_token: 'XXXX.DUMMY.TOKEN.XXXX',
       client_request_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     }))
     expect(await screen.findByText('You already have a ticket at this shop')).toBeInTheDocument()

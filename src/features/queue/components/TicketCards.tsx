@@ -1,6 +1,5 @@
-import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Button, Card } from '../../../components/ui'
+import { Badge, Button } from '../../../components/ui'
 import { cn } from '../../../lib/cn'
 import { formatTicketNumber, type QueueTicket } from '../types'
 
@@ -24,39 +23,51 @@ export function CustomerName({ name, className }: { name: string | null; classNa
   )
 }
 
-function SlotCard({ title, empty, children, highlight }: { title: string; empty: string; children?: ReactNode; highlight?: boolean }) {
+const minutesSince = (iso: string | null | undefined, now: number) =>
+  iso ? Math.max(0, Math.floor((now - Date.parse(iso)) / 60_000)) : 0
+
+function MoreButton({ ticket, onMore, className }: { ticket: QueueTicket; onMore: () => void; className?: string }) {
+  const { t } = useTranslation()
   return (
-    <Card as="section" aria-label={title} className={cn('flex min-h-44 flex-col gap-4', highlight && 'border-signal/60')}>
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">{title}</h2>
-      {children ?? <p className="my-auto text-center text-sm text-muted">{empty}</p>}
-    </Card>
+    <button type="button" onClick={onMore} aria-label={t('queue.actions.more', { number: formatTicketNumber(ticket.ticket_number) })}
+      className={cn('press flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface hover:text-soft', className)}>
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="currentColor">
+        <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+      </svg>
+    </button>
   )
 }
 
-export function InServiceCard({ ticket, busy, onComplete, onMore }: {
-  ticket: QueueTicket | undefined; busy: boolean; onComplete: () => void; onMore: () => void
+/** The customer in the chair: the biggest thing on the screen. */
+export function InServiceCard({ ticket, now, busy, onComplete, onMore }: {
+  ticket: QueueTicket; now: number; busy: boolean; onComplete: () => void; onMore: () => void
 }) {
   const { t } = useTranslation()
   return (
-    <SlotCard title={t('queue.inService')} empty={t('queue.emptyInService')}>
-      {ticket && (
-        <>
-          <div className="flex items-baseline gap-3">
-            <TicketNumber value={ticket.ticket_number} className="text-4xl" />
-            <CustomerName name={ticket.customer_name} className="text-lg font-semibold" />
-          </div>
-          <div className="mt-auto flex flex-wrap gap-2">
-            <Button size="lg" className="flex-1" loading={busy} onClick={onComplete}>{t('queue.actions.complete')}</Button>
-            <Button variant="ghost" size="lg" onClick={onMore} aria-label={t('queue.actions.more', { number: formatTicketNumber(ticket.ticket_number) })}>⋯</Button>
-          </div>
-        </>
-      )}
-    </SlotCard>
+    <section aria-label={t('queue.inService')} className="flex flex-col gap-4 animate-rise">
+      <div className="flex items-center gap-3">
+        <Badge tone="neutral">{t('queue.inService')}</Badge>
+        {ticket.service_started_at && (
+          <span className="text-sm text-muted">{t('queue.startedAgo', { minutes: minutesSince(ticket.service_started_at, now) })}</span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-1">
+        <span className="display text-7xl sm:text-8xl lg:text-[8.5rem]"><span dir="ltr">{formatTicketNumber(ticket.ticket_number)}</span></span>
+        <CustomerName name={ticket.customer_name} className="min-w-0 text-3xl font-bold tracking-tight sm:text-4xl" />
+      </div>
+      <div className="flex gap-2">
+        <Button size="lg" variant="light" loading={busy} onClick={onComplete} className="h-16 flex-1 rounded-2xl text-lg font-bold">
+          {t('queue.actions.complete')}
+        </Button>
+        <MoreButton ticket={ticket} onMore={onMore} className="size-16 rounded-2xl border border-line" />
+      </div>
+    </section>
   )
 }
 
+/** The customer who was called. Its main action is the one lime button on screen. */
 export function CalledCard({ ticket, now, graceMinutes, serviceBusy, busy, onArrived, onStart, onStartNow, onOnTheWay, onSkip, onMore }: {
-  ticket: QueueTicket | undefined
+  ticket: QueueTicket
   now: number
   graceMinutes: number | undefined
   serviceBusy: boolean
@@ -69,63 +80,68 @@ export function CalledCard({ ticket, now, graceMinutes, serviceBusy, busy, onArr
   onMore: () => void
 }) {
   const { t } = useTranslation()
-  if (!ticket) return <SlotCard title={t('queue.called')} empty={t('queue.emptyCalled')} />
-
-  const calledMinutes = ticket.called_at ? Math.max(0, Math.floor((now - Date.parse(ticket.called_at)) / 60_000)) : 0
+  const calledMinutes = minutesSince(ticket.called_at, now)
   const graceLeft = graceMinutes === undefined ? undefined : graceMinutes - calledMinutes
   const arrived = ticket.status === 'arrived'
 
   return (
-    <SlotCard title={t('queue.called')} empty="" highlight>
-      <div className="flex flex-wrap items-baseline gap-3">
-        <TicketNumber value={ticket.ticket_number} className="text-4xl" />
-        <CustomerName name={ticket.customer_name} className="text-lg font-semibold" />
-        <Badge tone="signal" dot className="ms-auto">{t(`queue.ticketStatus.${ticket.status}`)}</Badge>
+    <section aria-label={t('queue.called')} className="flex flex-col gap-4 rounded-3xl bg-surface p-5 sm:p-6 animate-rise">
+      <div className="flex flex-wrap items-center gap-3">
+        <Badge tone="signal" dot>{t(`queue.ticketStatus.${ticket.status}`)}</Badge>
+        <span className="text-sm text-muted">
+          {calledMinutes === 0 ? t('queue.calledJustNow') : t('queue.calledAgo', { minutes: calledMinutes })}
+          {!arrived && graceLeft !== undefined && (
+            <> · {graceLeft > 0 ? t('queue.graceLeft', { minutes: graceLeft }) : t('queue.graceOver')}</>
+          )}
+        </span>
       </div>
-      <p className="text-sm text-muted">
-        {t('queue.calledAgo', { minutes: calledMinutes })}
-        {!arrived && graceLeft !== undefined && (
-          <> · {graceLeft > 0 ? t('queue.graceLeft', { minutes: graceLeft }) : t('queue.graceOver')}</>
-        )}
-      </p>
-      <div className="mt-auto flex flex-col gap-2">
-        {arrived ? (
-          <Button size="lg" loading={busy} disabled={serviceBusy} onClick={onStart}>{t('queue.actions.start')}</Button>
-        ) : (
-          <Button size="lg" loading={busy} onClick={onArrived}>{t('queue.actions.arrived')}</Button>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {!arrived && <Button variant="secondary" size="sm" disabled={serviceBusy} onClick={onStartNow}>{t('queue.actions.startNow')}</Button>}
-          {ticket.status === 'getting_ready' && <Button variant="secondary" size="sm" onClick={onOnTheWay}>{t('queue.actions.onTheWay')}</Button>}
-          <Button variant="secondary" size="sm" onClick={onSkip}>{t('queue.actions.skip')}</Button>
-          <Button variant="ghost" size="sm" onClick={onMore} aria-label={t('queue.actions.more', { number: formatTicketNumber(ticket.ticket_number) })}>⋯</Button>
-        </div>
+      <div className="flex min-w-0 items-baseline gap-4">
+        <span className="display text-6xl"><span dir="ltr">{formatTicketNumber(ticket.ticket_number)}</span></span>
+        <CustomerName name={ticket.customer_name} className="min-w-0 text-2xl font-bold tracking-tight" />
       </div>
-    </SlotCard>
+      {arrived ? (
+        <Button size="lg" loading={busy} disabled={serviceBusy} onClick={onStart} className="h-16 rounded-2xl text-lg font-bold">
+          {t('queue.actions.start')}
+        </Button>
+      ) : (
+        <Button size="lg" loading={busy} onClick={onArrived} className="h-16 rounded-2xl text-lg font-bold">
+          {t('queue.actions.arrived')}
+        </Button>
+      )}
+      {serviceBusy && arrived && <p className="text-sm text-muted">{t('queue.finishFirst')}</p>}
+      <div className="flex flex-wrap gap-2">
+        {!arrived && <Button variant="secondary" size="sm" disabled={serviceBusy} onClick={onStartNow}>{t('queue.actions.startNow')}</Button>}
+        {ticket.status === 'getting_ready' && <Button variant="secondary" size="sm" onClick={onOnTheWay}>{t('queue.actions.onTheWay')}</Button>}
+        <Button variant="secondary" size="sm" onClick={onSkip}>{t('queue.actions.skip')}</Button>
+        <MoreButton ticket={ticket} onMore={onMore} className="ms-auto" />
+      </div>
+    </section>
   )
 }
 
-export function WaitingList({ tickets, onMore }: { tickets: QueueTicket[]; onMore: (ticket: QueueTicket) => void }) {
+export function WaitingList({ tickets, now, onMore }: { tickets: QueueTicket[]; now: number; onMore: (ticket: QueueTicket) => void }) {
   const { t } = useTranslation()
   return (
-    <Card as="section" aria-label={t('queue.waiting')} padding="none">
-      <h2 className="px-5 pt-5 text-xs font-semibold uppercase tracking-widest text-muted">
-        {t('queue.waiting')} · {t('queue.waitingCount', { count: tickets.length })}
+    <section aria-label={t('queue.waiting')} className="flex flex-col">
+      <h2 className="flex items-baseline gap-2.5 px-2 pb-3 text-xl font-extrabold tracking-tight">
+        {t('queue.waiting')} <span dir="ltr" className="tabular-nums text-graphite">{tickets.length}</span>
       </h2>
       {tickets.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-muted">{t('queue.emptyWaiting')}</p>
+        <p className="px-2 py-2 text-sm leading-relaxed text-muted">{t('queue.emptyWaiting')}</p>
       ) : (
-        <ol className="mt-3 divide-y divide-line">
+        <ol className="flex flex-col gap-1">
           {tickets.map((ticket, index) => (
-            <li key={ticket.id} className="flex items-center gap-4 px-5 py-3">
-              <TicketNumber value={ticket.ticket_number} className={cn('w-12 text-lg', index === 0 ? 'text-signal' : 'text-soft')} />
-              <CustomerName name={ticket.customer_name} className="min-w-0 flex-1" />
-              <Button variant="ghost" size="sm" onClick={() => onMore(ticket)}
-                      aria-label={t('queue.actions.more', { number: formatTicketNumber(ticket.ticket_number) })}>⋯</Button>
+            <li key={ticket.id} className={cn('flex h-16 items-center gap-4 rounded-2xl ps-4 pe-2', index === 0 && 'bg-surface')}>
+              <TicketNumber value={ticket.ticket_number} className={cn('w-12 text-xl font-extrabold', index === 0 ? 'text-signal' : 'text-graphite')} />
+              <CustomerName name={ticket.customer_name} className="min-w-0 flex-1 text-base font-semibold" />
+              {ticket.joined_at && (
+                <span className="text-sm text-muted">{t('queue.waitedMinutes', { minutes: minutesSince(ticket.joined_at, now) })}</span>
+              )}
+              <MoreButton ticket={ticket} onMore={() => onMore(ticket)} />
             </li>
           ))}
         </ol>
       )}
-    </Card>
+    </section>
   )
 }

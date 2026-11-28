@@ -152,7 +152,7 @@ Routes: `/`, `/s/:slug` (provisional), `/t`, `/barber/login`, `/barber`, `/dev/u
 | ~~B-3~~ | **Resolved (TD approved):** the MVP ships without phone verification. Mitigations are Turnstile, rate limits, the per-shop cap and utility-only templates. `shop_settings.require_phone_verification` exists and defaults to `false`; inbound-WhatsApp verification is the next step after the MVP. | — | — |
 | ~~B-4~~ | **Resolved:** TD v1 is approved as written, including the 14 PRD changes (status `expired`, extra transitions, `shop_settings`, HMAC tokens, `reveal_phone`, 30-day anonymisation, ticket-number ordering, and the rest). The TD state machine (§4.4) is authoritative. | — | — |
 | ~~B-5~~ | **Resolved locally (M1):** an anonymous supabase-js client receives the public `qs:<session>` broadcast from `realtime.send(..., private => false)`. The payload is `{v, id}` (`id` is Realtime's message id), and the ping arrives only after commit. **Re-check once on the hosted staging project**, whose Realtime settings may restrict public channels. | — | — |
-| B-6 | **Legal: Law 09-08 / CNDP.** | The consent text and the 30-day retention it promises. | **M4 ships a DRAFT consent text** (`draft-2026-11`, in AR/FR/EN, `src/features/customer/consent.ts`). **Must be approved by a Moroccan lawyer before launch.** Bump the version when the wording changes. |
+| B-6 | **Legal: Law 09-08 / CNDP.** | The consent text and the 30-day retention it promises. | **M4 ships a DRAFT consent text** (`draft-2026-11`, in AR/FR/EN, `src/features/customer/consent.ts`). **Must be approved by a Moroccan lawyer before launch.** Bump the version when the wording changes. Since 28 Nov 2026 (`draft-2026-11b`) it is a *layered* notice: a short checkbox label plus the full text one tap away; the lawyer must approve both layers together. |
 | B-7 | **Meta business verification (WhatsApp).** | On 22 Nov 2026 the staging test WABA (`1592839862530624`) was found **restricted, permanently, until the business is verified**. Every send fails with error `131031` ("Business Account locked"), test messages included. Tickets are unaffected: sends fail, retry and stop, as designed. | Register the business (company or auto-entrepreneur), choose the domain (D-04) and publish a site showing the business name, then complete Meta business verification. Until then, WhatsApp can only be tested with the offline Meta double (local and CI E2E). |
 
 ## 10. Unresolved technical / product decisions
@@ -474,3 +474,13 @@ Notes:
 - **Lost authenticator:** documented recovery in OPERATIONS.md (SQL, by another person with database access).
 
 **Verified:** 33 new pgTAP assertions (268 total); 91 unit tests; Playwright `e2e/admin.spec.ts` (desktop and mobile): two-factor setup with a real TOTP code, shop creation, account creation, forced password change; a shop owner is refused; the admin-users API refuses no session, an owner and an admin without two-factor, and covers disable, enable, reset, `already_member`, `forbidden_target` and the password flag.
+
+## 19. UI redesign: "Apple clarity + Linear dark" (28 Nov 2026)
+
+Approved from the clickable prototype (private artifact). Brand colours, logo and fonts unchanged.
+
+- **Customer flow** (`CustomerShell`): no site menu or footer, a compact language picker. Join page: shop name and live count, label-in-box fields, layered consent (`CONSENT_TEXT_VERSION` → `draft-2026-11b`), the join button fixed under the thumb. Ticket page: paper-ticket card with the number as hero, people ahead as a number plus dots; when called the **whole screen turns Signal Lime** with the grace countdown and "I'm on my way"; "Leave the queue" is quiet at the bottom.
+- **Barber dashboard**: the customer in the chair is the hero; the called customer's action is the only lime button; CALL NEXT appears only when it can be used (no disabled bar); waiting list in a side column with minutes waited (`joined_at`, already granted); every control ≥ 44 px.
+- **Landing page**: hero with a live-styled ticket preview, steps as numerals instead of cards, a barber preview, one privacy statement.
+- **Foundations**: `press` (instant press feedback), `display` (tight tracking for big numbers), `animate-rise`, `animate-live`; motion off under `prefers-reduced-motion`. Button sizes `sm` raised to 44 px; variants `light` and `inverse`.
+- Guidance: `.claude/skills/apple-design` (Emil Kowalski, MIT) and the UI Design Review plugin.

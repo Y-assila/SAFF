@@ -22,8 +22,8 @@ test('a customer joins from the QR page and gets a private ticket', async ({ pag
 
   await expect(page).toHaveURL(/\/t$/) // the token is never in the address bar
   await expect(page.getByText('002')).toBeVisible()
-  await expect(page.getByText('You are in the queue')).toBeVisible()
-  await expect(page.getByText('People ahead of you: 1')).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Your ticket/ })).toBeVisible()
+  await expect(page.getByText('person ahead of you')).toBeVisible()
   await expect(page.getByText(/Estimated wait: about \d+ min/)).toBeVisible()
   await expect(page.locator('body')).not.toContainText('0612345601')
   const stored = await page.evaluate(() => localStorage.getItem('saff.ticket'))
@@ -41,20 +41,20 @@ test('the ticket updates live when the barber calls, and the customer confirms',
 
   const { error } = await barberRpc.rpc('call_next_customer', { p_session_id: sessionId })
   expect(error).toBeNull()
-  await expect(page.getByText('It’s almost your turn. Please come to the shop now.')).toBeVisible({ timeout: 5_000 })
-  await expect(page.getByText(/Please arrive within \d+ min/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'It’s your turn' })).toBeVisible({ timeout: 5_000 })
+  await expect(page.getByText('min left to arrive')).toBeVisible()
 
   await page.getByRole('button', { name: 'I’m on my way' }).click()
-  await expect(page.getByText('The barber knows you are on your way.')).toBeVisible()
+  await expect(page.getByText('The barber knows you are coming')).toBeVisible()
 })
 
 test('a customer can cancel their ticket (with confirmation)', async ({ page }) => {
   const { shop } = await openShop()
   await joinFromQrPage(page, shop.slug, 'Chama', '0612345603')
-  await page.getByRole('button', { name: 'Cancel my ticket' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel my ticket' }).click()
+  await page.getByRole('button', { name: 'Leave the queue' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Yes, leave' }).click()
   await expect(page.getByText('You cancelled your ticket.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Cancel my ticket' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Leave the queue' })).toHaveCount(0)
 })
 
 test('joining twice with the same phone does not create a second ticket', async ({ page, browser }) => {
@@ -97,13 +97,11 @@ test('closed and unknown shops', async ({ page }) => {
 test('the ticket page opens in the language the customer joined with (D-06)', async ({ page }) => {
   const { shop } = await openShop()
   await page.goto(`/s/${shop.slug}`)
-  const menu = page.getByRole('button', { name: 'Open menu' })
-  if (await menu.isVisible()) await menu.click() // on phones the language switcher is in the menu
-  await page.getByRole('button', { name: 'العربية' }).first().click()
+  await page.getByLabel('Language').selectOption('ar') // customer screens: one compact picker, no menu
   await page.getByLabel('اسمك').fill('دعاء')
   await page.getByLabel(/رقم الهاتف المحمول/).fill('0612345605')
   await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: 'الانضمام إلى الطابور' }).click()
-  await expect(page.getByText('أنت في الطابور')).toBeVisible()
+  await expect(page.getByText('أشخاص قبلك').or(page.getByText('شخص قبلك')).or(page.getByText('أنت التالي'))).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
 })

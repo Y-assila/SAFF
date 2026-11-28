@@ -25,7 +25,7 @@ export function BarberShell() {
         {t('common.skipToContent')}
       </a>
       <header data-print-hide className="sticky top-0 z-40 border-b border-line bg-midnight/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
           <Link to="/barber" aria-label={t('barber.home')} className="-m-1 shrink-0 rounded-control p-1">
             <Logo variant="symbol" alt="" className="h-7 w-auto" />
           </Link>
@@ -40,14 +40,14 @@ export function BarberShell() {
           </div>
         </div>
         {shopId && (
-          <nav aria-label={t('barber.nav')} className="mx-auto flex max-w-5xl gap-1 px-4 pb-2 sm:px-6">
+          <nav aria-label={t('barber.nav')} className="mx-auto flex max-w-6xl gap-1 px-4 pb-2 sm:px-6">
             <NavLink end to={`/barber/${shopId}`} className={navClass}>{t('barber.dashboard')}</NavLink>
             <NavLink to={`/barber/${shopId}/qr`} className={navClass}>{t('qr.nav')}</NavLink>
             <NavLink to={`/barber/${shopId}/settings`} className={navClass}>{t('barber.settings')}</NavLink>
           </nav>
         )}
       </header>
-      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 focus:outline-none sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 focus:outline-none sm:px-6">
         <Outlet />
       </main>
       <div data-print-hide className="border-t border-line px-4 py-3 sm:hidden"><LanguageSwitcher className="w-fit" /></div>

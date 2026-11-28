@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import type { RouteObject } from 'react-router'
 import { AppShell } from '../components/layout/AppShell'
+import { CustomerShell } from '../components/layout/CustomerShell'
 import { LoadingState } from '../components/ui'
 import { LandingPage } from '../pages/LandingPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -50,8 +51,6 @@ const load = (element: ReactNode) => <Suspense fallback={<LoadingState />}>{elem
 export function createRoutes({ dev = import.meta.env.DEV }: { dev?: boolean } = {}): RouteObject[] {
   const children: RouteObject[] = [
     { index: true, element: <LandingPage /> },
-    { path: 's/:slug', element: load(<ShopPage />) },
-    { path: 't', element: load(<TicketPage />) },
     { path: 'barber/login', element: load(<BarberLoginRoute />) },
     { path: 'admin/login', element: load(<AdminLoginRoute />) },
     { path: '*', element: <NotFoundPage /> },
@@ -63,6 +62,14 @@ export function createRoutes({ dev = import.meta.env.DEV }: { dev?: boolean } = 
 
   return [
     { path: '/', element: <AppShell />, errorElement: <RouteErrorPage />, children },
+    {
+      element: <CustomerShell />,
+      errorElement: <RouteErrorPage />,
+      children: [
+        { path: '/s/:slug', element: load(<ShopPage />) },
+        { path: '/t', element: load(<TicketPage />) },
+      ],
+    },
     {
       path: '/barber',
       element: load(<BarberAreaRoute />),
